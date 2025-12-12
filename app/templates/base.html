@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Waffle Bowl 🧇{% endblock %}</title>
+
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+
+    <!-- HTMX -->
+    <script src="https://unpkg.com/htmx.org@2.0.4"></script>
+
+    <!-- Custom CSS -->
+    <style>
+        /* Custom waffle theme colors */
+        :root {
+            --waffle-brown: #8B4513;
+            --waffle-gold: #FFD700;
+        }
+
+        /* Loading indicator for HTMX */
+        .htmx-request .htmx-indicator {
+            display: inline-block;
+        }
+        .htmx-indicator {
+            display: none;
+        }
+
+        /* Bracket lines */
+        .bracket-line {
+            border: 2px solid #6B7280;
+        }
+
+        /* Pulse animation for live scores */
+        @keyframes pulse-subtle {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.8; }
+        }
+        .live-score {
+            animation: pulse-subtle 2s ease-in-out infinite;
+        }
+    </style>
+
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <!-- Header -->
+    <nav class="bg-gradient-to-r from-amber-600 to-amber-700 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex items-center justify-between h-16">
+                <div class="flex items-center">
+                    <a href="/" class="flex items-center">
+                        <span class="text-3xl mr-2">🧇</span>
+                        <span class="text-white text-2xl font-bold">Waffle Bowl</span>
+                    </a>
+                </div>
+                <div class="flex items-center space-x-4">
+                    <a href="/" class="text-white hover:text-amber-200 px-3 py-2 rounded-md text-sm font-medium">
+                        Bracket
+                    </a>
+                    <a href="/about" class="text-white hover:text-amber-200 px-3 py-2 rounded-md text-sm font-medium">
+                        About
+                    </a>
+                </div>
+            </div>
+        </div>
+    </nav>
+
+    <!-- Flash messages -->
+    {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
+                {% for category, message in messages %}
+                    <div class="rounded-md {% if category == 'error' %}bg-red-50 border-red-200{% else %}bg-blue-50 border-blue-200{% endif %} border p-4 mb-4">
+                        <p class="{% if category == 'error' %}text-red-800{% else %}text-blue-800{% endif %}">{{ message }}</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    {% endwith %}
+
+    <!-- Main content -->
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {% block content %}{% endblock %}
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-800 text-white mt-16">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+            <div class="text-center">
+                <p class="text-gray-400">
+                    Made with 🧇 |
+                    <a href="https://github.com/anthropics/claude-code" class="text-amber-400 hover:text-amber-300">
+                        Built with Claude Code
+                    </a>
+                </p>
+                <p class="text-gray-500 text-sm mt-2">
+                    Tracking the race to avoid last place
+                </p>
+            </div>
+        </div>
+    </footer>
+
+    {% block extra_js %}{% endblock %}
+</body>
+</html>

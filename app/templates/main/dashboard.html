@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Waffle Bowl - Dashboard{% endblock %}
+
+{% block content %}
+<div class="space-y-6">
+    <!-- Header Section -->
+    <div class="bg-white rounded-lg shadow-md p-6">
+        <div class="flex items-center justify-between flex-wrap gap-4">
+            <div>
+                <h1 class="text-4xl font-bold text-gray-900 flex items-center">
+                    <span class="mr-3">🧇</span>
+                    Waffle Bowl 2025
+                </h1>
+                <p class="text-gray-600 mt-2">The battle to avoid last place</p>
+            </div>
+            <div class="text-right">
+                <div class="text-sm text-gray-500">Last updated:</div>
+                <div class="text-lg font-semibold text-gray-900" id="last-update">
+                    Just now
+                </div>
+                <div class="mt-2">
+                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                        <span class="animate-pulse mr-2">●</span> Live
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bracket Status -->
+    <div
+        id="bracket-status-container"
+        hx-get="/api/bracket/status"
+        hx-trigger="load, every 60s"
+        hx-swap="innerHTML"
+        class="bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg shadow-md p-6 text-white"
+    >
+        <div class="flex items-center justify-center">
+            <div class="text-center">
+                <h2 class="text-2xl font-bold mb-2">Current Status</h2>
+                <p class="text-lg">
+                    Loading bracket status...
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bracket Component -->
+    <div
+        id="bracket-container"
+        hx-get="/api/bracket/refresh"
+        hx-trigger="load, every 60s"
+        hx-swap="innerHTML"
+        class="bg-white rounded-lg shadow-md p-6 min-h-[400px]"
+    >
+        <!-- HTMX will load bracket here -->
+        <div class="flex items-center justify-center h-64">
+            <div class="text-center">
+                <div class="htmx-indicator">
+                    <svg class="animate-spin h-12 w-12 text-amber-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                </div>
+                <p class="text-gray-600 mt-4">Loading Waffle Bowl bracket...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="bg-blue-50 rounded-lg border border-blue-200 p-6">
+        <h3 class="text-lg font-semibold text-blue-900 mb-3">How the Waffle Bowl Works</h3>
+        <div class="grid md:grid-cols-3 gap-4 text-sm text-blue-800">
+            <div>
+                <div class="font-semibold mb-1">📊 Seeding</div>
+                <p>Bottom 6 teams by record enter the Waffle Bowl</p>
+            </div>
+            <div>
+                <div class="font-semibold mb-1">🎯 The Twist</div>
+                <p>Worst 2 teams get BYES - they advance automatically!</p>
+            </div>
+            <div>
+                <div class="font-semibold mb-1">🧇 The Goal</div>
+                <p>LOSE to avoid last place. Winner gets the Waffle!</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Team Details Modal -->
+<div id="team-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
+    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+        <div class="flex justify-between items-center mb-4">
+            <h3 class="text-2xl font-bold text-gray-900">Team Details</h3>
+            <button
+                onclick="document.getElementById('team-modal').classList.add('hidden')"
+                class="text-gray-400 hover:text-gray-600"
+            >
+                <svg class="h-6 w-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                </svg>
+            </button>
+        </div>
+        <div id="team-modal-content">
+            <!-- HTMX will load content here -->
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Update last update time
+    function updateTime() {
+        const now = new Date();
+        const timeStr = now.toLocaleTimeString('en-US', {
+            hour: 'numeric',
+            minute: '2-digit'
+        });
+        document.getElementById('last-update').textContent = timeStr;
+    }
+
+    // Update time every minute
+    setInterval(updateTime, 60000);
+
+    // Show team modal
+    function showTeamModal(teamId) {
+        const modal = document.getElementById('team-modal');
+        modal.classList.remove('hidden');
+
+        // Load team details via HTMX
+        htmx.ajax('GET', `/api/team/${teamId}/details`, {
+            target: '#team-modal-content',
+            swap: 'innerHTML'
+        });
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('team-modal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            this.classList.add('hidden');
+        }
+    });
+</script>
+{% endblock %}
