@@ -1,6 +1,7 @@
 """Initialize Yahoo OAuth tokens from environment variables."""
 import os
 import json
+import time
 from pathlib import Path
 
 def init_tokens():
@@ -20,7 +21,7 @@ def init_tokens():
             'consumer_key': os.getenv('YAHOO_CLIENT_ID', ''),
             'consumer_secret': os.getenv('YAHOO_CLIENT_SECRET', ''),
             'refresh_token': os.getenv('YAHOO_REFRESH_TOKEN', ''),
-            'token_time': 0,
+            'token_time': time.time(),
             'token_type': 'bearer'
         }
 
