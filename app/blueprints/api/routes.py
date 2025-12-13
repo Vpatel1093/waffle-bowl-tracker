@@ -39,7 +39,7 @@ def refresh_bracket():
             if week <= current_week:
                 scoreboard = yahoo.get_scoreboard(week)
                 if scoreboard:
-                    bracket = bracket_svc.update_bracket_with_results(bracket, scoreboard, yahoo)
+                    bracket = bracket_svc.update_bracket_with_results(bracket, scoreboard, yahoo, current_week)
 
         # Get bracket status
         bracket_status = bracket_svc.get_bracket_status(bracket, current_week)
