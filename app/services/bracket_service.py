@@ -244,8 +244,27 @@ class BracketService:
         qf_week_complete = self.is_week_complete(qf['week'], current_week, qf_scoreboard) if current_week else True
         if qf_week_complete and qf['matchups'][0].get('loser') and qf['matchups'][1].get('loser'):
             sf = bracket['rounds']['semifinals']
-            sf['matchups'][0]['team1'] = qf['matchups'][0]['loser']
-            sf['matchups'][1]['team1'] = qf['matchups'][1]['loser']
+
+            # Get both QF losers
+            qf1_loser = qf['matchups'][0]['loser']
+            qf2_loser = qf['matchups'][1]['loser']
+
+            # Reward better season performance: higher waffle_seed = better regular season
+            # Better QF loser gets easier matchup (Seed 2), worse loser gets Seed 1
+            if qf1_loser['waffle_seed'] > qf2_loser['waffle_seed']:
+                # QF1 loser had better season, gets Seed 2
+                better_loser = qf1_loser
+                worse_loser = qf2_loser
+            else:
+                # QF2 loser had better season, gets Seed 2
+                better_loser = qf2_loser
+                worse_loser = qf1_loser
+
+            # Assign matchups based on season performance:
+            # Better season performer plays Seed 2 (SF1)
+            # Worse season performer plays Seed 1 (SF2) - hardest matchup
+            sf['matchups'][0]['team1'] = better_loser  # vs Seed 2
+            sf['matchups'][1]['team1'] = worse_loser   # vs Seed 1 (worst team)
 
         # Update semifinals if this is SF week
         sf = bracket['rounds']['semifinals']
