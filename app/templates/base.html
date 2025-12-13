@@ -22,7 +22,41 @@
         :root {
             --waffle-brown: #8B4513;
             --waffle-gold: #FFD700;
+            --syrup-amber: #D97706;
+            --syrup-dark: #92400E;
         }
+
+        /* Waffle grid background pattern */
+        body {
+            background: linear-gradient(90deg, #f3f4f6 21px, transparent 1%) center,
+                        linear-gradient(#f3f4f6 21px, transparent 1%) center,
+                        #fef3c7;
+            background-size: 22px 22px;
+        }
+
+        /* Syrup drip animation */
+        @keyframes syrup-drip {
+            0% { transform: translateY(-100%); opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { transform: translateY(100vh); opacity: 0; }
+        }
+
+        .syrup-drop {
+            position: absolute;
+            width: 4px;
+            height: 30px;
+            background: linear-gradient(to bottom, transparent, #D97706, #92400E);
+            border-radius: 0 0 50% 50%;
+            animation: syrup-drip 8s ease-in infinite;
+            opacity: 0.6;
+        }
+
+        .syrup-drop:nth-child(1) { left: 10%; animation-delay: 0s; }
+        .syrup-drop:nth-child(2) { left: 25%; animation-delay: 2s; }
+        .syrup-drop:nth-child(3) { left: 45%; animation-delay: 4s; }
+        .syrup-drop:nth-child(4) { left: 65%; animation-delay: 1s; }
+        .syrup-drop:nth-child(5) { left: 85%; animation-delay: 3s; }
 
         /* Loading indicator for HTMX */
         .htmx-request .htmx-indicator {
@@ -45,19 +79,48 @@
         .live-score {
             animation: pulse-subtle 2s ease-in-out infinite;
         }
+
+        /* Sticky syrup effect on last place */
+        .syrup-covered {
+            position: relative;
+            background: linear-gradient(180deg, #FEF3C7 0%, #D97706 100%);
+            box-shadow: 0 4px 20px rgba(217, 119, 6, 0.4);
+        }
+
+        .syrup-covered::before {
+            content: '💧';
+            position: absolute;
+            top: -10px;
+            right: 10px;
+            font-size: 1.5rem;
+            animation: drip-bounce 2s ease-in-out infinite;
+        }
+
+        @keyframes drip-bounce {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(5px); }
+        }
     </style>
 
     {% block extra_css %}{% endblock %}
 </head>
 <body class="bg-gray-50 min-h-screen">
-    <!-- Header -->
-    <nav class="bg-gradient-to-r from-amber-600 to-amber-700 shadow-lg">
+    <!-- Header with syrup drips -->
+    <nav class="bg-gradient-to-r from-amber-600 to-amber-700 shadow-lg relative overflow-hidden">
+        <!-- Syrup drip animation -->
+        <div class="syrup-drop"></div>
+        <div class="syrup-drop"></div>
+        <div class="syrup-drop"></div>
+        <div class="syrup-drop"></div>
+        <div class="syrup-drop"></div>
+
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 <div class="flex items-center">
-                    <a href="/" class="flex items-center">
-                        <span class="text-3xl mr-2">🧇</span>
+                    <a href="/" class="flex items-center group">
+                        <span class="text-3xl mr-2 group-hover:animate-bounce">🧇</span>
                         <span class="text-white text-2xl font-bold">Waffle Bowl</span>
+                        <span class="ml-2 text-xs bg-yellow-400 text-amber-900 px-2 py-1 rounded-full font-semibold">Presented by Waffle House</span>
                     </a>
                 </div>
                 <div class="flex items-center space-x-4">
@@ -91,18 +154,30 @@
     </main>
 
     <!-- Footer -->
-    <footer class="bg-gray-800 text-white mt-16">
+    <footer class="bg-gradient-to-b from-gray-800 to-gray-900 text-white mt-16 border-t-4 border-amber-500">
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-            <div class="text-center">
-                <p class="text-gray-400">
-                    Made with 🧇 |
-                    <a href="https://github.com/anthropics/claude-code" class="text-amber-400 hover:text-amber-300">
-                        Built with Claude Code
-                    </a>
+            <div class="text-center space-y-4">
+                <!-- Waffle House Sponsorship -->
+                <div class="text-amber-400 font-bold text-lg flex items-center justify-center gap-2">
+                    <span class="text-2xl">🧇</span>
+                    <span>Proudly Sponsored by Waffle House*</span>
+                    <span class="text-2xl">🧈</span>
+                </div>
+                <p class="text-gray-500 text-xs italic">
+                    *Not actually sponsored by Waffle House (but we wish we were)
                 </p>
-                <p class="text-gray-500 text-sm mt-2">
-                    Tracking the race to avoid last place
-                </p>
+
+                <div class="border-t border-gray-700 pt-4">
+                    <p class="text-gray-400">
+                        Made with 🧇 & 🍯 |
+                        <a href="https://github.com/anthropics/claude-code" class="text-amber-400 hover:text-amber-300">
+                            Built with Claude Code
+                        </a>
+                    </p>
+                    <p class="text-gray-500 text-sm mt-2">
+                        🥞 Where champions are made... and losers are drowned in syrup 💧
+                    </p>
+                </div>
             </div>
         </div>
     </footer>
