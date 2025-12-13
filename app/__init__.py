@@ -32,6 +32,15 @@ def create_app(config_name='default'):
     app.register_blueprint(main_blueprint)
     app.register_blueprint(api_blueprint, url_prefix='/api')
 
+    # Cache service instances
+    @app.before_request
+    def setup_services():
+        """Initialize cached service instances for this request."""
+        from flask import g
+        if not hasattr(g, 'yahoo_service'):
+            from app.services.yahoo_service import YahooService
+            g.yahoo_service = YahooService()
+
     # Error handlers
     @app.errorhandler(404)
     def not_found_error(error):

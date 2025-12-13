@@ -1,21 +1,22 @@
 """API blueprint routes for HTMX endpoints."""
-from flask import render_template, current_app
+from flask import render_template, current_app, g
 from app.blueprints.api import api
 from app import limiter, cache
 from app.services.yahoo_service import YahooService
 from app.services.bracket_service import BracketService
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 
-@cache.memoize(timeout=15)  # Match CACHE_LIVE_SCORES
+@cache.memoize(timeout=30)  # Match CACHE_LIVE_SCORES
 def get_complete_bracket():
-    """Get complete bracket with all data - cached for 15 seconds.
+    """Get complete bracket with all data - cached for 30 seconds.
 
     Optimized to only fetch ACTIVE week data (not all 3 weeks).
     Pre-fetches rosters for active week only (6 rosters vs 18).
 
     Caching strategy:
-    - This function: 15 seconds (aligned with live scores)
-    - Scoreboards: 15s for active week, 24h for completed weeks (smart caching)
+    - This function: 30 seconds (aligned with live scores)
+    - Scoreboards: 30s for active week, 24h for completed weeks (smart caching)
     - Rosters: 15 minutes (don't change during games)
     - Standings: 60 seconds
 
@@ -23,19 +24,23 @@ def get_complete_bracket():
         Dict with bracket, current_week, bracket_status, standings, and rosters
     """
     try:
-        yahoo = YahooService()
+        yahoo = g.yahoo_service  # Use cached service instance
         bracket_svc = BracketService()
 
-        # Get standings
-        standings = yahoo.get_league_standings()
+        # Parallelize initial data fetching
+        with ThreadPoolExecutor(max_workers=2) as executor:
+            # Fetch standings and current week in parallel
+            standings_future = executor.submit(yahoo.get_league_standings)
+            current_week_future = executor.submit(yahoo.get_current_week)
+
+            standings = standings_future.result()
+            current_week = current_week_future.result()
+
         if not standings:
             return None
 
         # Get Waffle Bowl teams (bottom 6)
         waffle_teams = bracket_svc.get_waffle_bowl_teams(standings)
-
-        # Get current week
-        current_week = yahoo.get_current_week()
 
         # Create bracket structure
         bracket = bracket_svc.create_bracket_structure(waffle_teams, current_week)
@@ -58,27 +63,44 @@ def get_complete_bracket():
         else:
             active_week = None
 
-        # Pre-fetch rosters ONLY for active week (not all 3 weeks)
+        # Pre-fetch rosters ONLY for active week (not all 3 weeks) - PARALLELIZED
         rosters = {}
         team_points_by_week = {}
 
-        for team in waffle_teams:
-            team_id = team['team_id']
-            rosters[team_id] = {}
-            team_points_by_week[team_id] = {}
+        if active_week:
+            # Fetch all team rosters in parallel
+            with ThreadPoolExecutor(max_workers=6) as executor:
+                # Submit all roster fetch tasks
+                roster_futures = {
+                    executor.submit(yahoo.get_team_roster, team['team_id'], active_week): team['team_id']
+                    for team in waffle_teams
+                }
 
-            # Only fetch roster for active week
-            if active_week:
-                roster = yahoo.get_team_roster(team_id, active_week)
-                if roster:
-                    rosters[team_id][active_week] = roster
+                # Collect results as they complete
+                for future in as_completed(roster_futures):
+                    team_id = roster_futures[future]
+                    rosters[team_id] = {}
+                    team_points_by_week[team_id] = {}
 
-                    # Calculate points from roster (starters only)
-                    points = sum(
-                        p['points'] for p in roster.get('players', [])
-                        if p.get('selected_position') != 'BN'
-                    )
-                    team_points_by_week[team_id][active_week] = points
+                    try:
+                        roster = future.result()
+                        if roster:
+                            rosters[team_id][active_week] = roster
+
+                            # Calculate points from roster (starters only)
+                            points = sum(
+                                p['points'] for p in roster.get('players', [])
+                                if p.get('selected_position') != 'BN'
+                            )
+                            team_points_by_week[team_id][active_week] = points
+                    except Exception as e:
+                        current_app.logger.error(f"Error fetching roster for team {team_id}: {e}")
+        else:
+            # No active week, initialize empty dicts
+            for team in waffle_teams:
+                team_id = team['team_id']
+                rosters[team_id] = {}
+                team_points_by_week[team_id] = {}
 
         # Fetch scoreboard ONLY for active week
         if active_week and active_week <= current_week:
