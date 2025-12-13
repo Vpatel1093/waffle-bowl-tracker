@@ -121,7 +121,7 @@ Visit `https://localhost:5000` to see your Waffle Bowl!
 
 ---
 
-## Railway Deployment
+## Fly.io Deployment
 
 ### Initial Deployment
 
@@ -135,36 +135,114 @@ Visit `https://localhost:5000` to see your Waffle Bowl!
    git push -u origin main
    ```
 
-2. **Create Railway Project**
-   - Go to [Railway.app](https://railway.app)
-   - Click "New Project" → "Deploy from GitHub repo"
-   - Select your waffle-bowl-tracker repository
+2. **Install Fly.io CLI**
+   ```bash
+   # macOS
+   brew install flyctl
 
-3. **Add Redis Service**
-   - In Railway project, click "+ New"
-   - Select "Redis"
-   - Railway will provide a `REDIS_URL`
-
-4. **Set Environment Variables**
-   In Railway project settings, add:
-   ```
-   FLASK_ENV=production
-   YAHOO_CLIENT_ID=<your-client-id>
-   YAHOO_CLIENT_SECRET=<your-client-secret>
-   YAHOO_ACCESS_TOKEN=<from-oauth-setup>
-   YAHOO_REFRESH_TOKEN=<from-oauth-setup>
-   REDIS_URL=<from-railway-redis>
-   LEAGUE_ID=<your-league-id>
-   WAFFLE_BOWL_TEAMS=6
+   # Or use install script
+   curl -L https://fly.io/install.sh | sh
    ```
 
-5. **Update Yahoo Developer Redirect URI**
-   - Get your Railway app URL (e.g., `https://waffle-bowl-tracker.up.railway.app`)
-   - Update Yahoo Developer app redirect URI to: `https://your-app.railway.app/auth/callback`
+3. **Login to Fly.io**
+   ```bash
+   flyctl auth login
+   ```
 
-6. **Deploy**
-   - Railway auto-deploys on git push
-   - Your app will be live at the Railway URL!
+4. **Launch App (via CLI or Web UI)**
+
+   **Option A: Using CLI**
+   ```bash
+   # Navigate to project
+   cd waffle-bowl-tracker
+
+   # Launch (will use existing fly.toml)
+   flyctl launch --no-deploy
+
+   # When prompted:
+   # - Choose app name (e.g., "wafflebowl")
+   # - Select region (e.g., "iad" - US East)
+   # - PostgreSQL: No
+   # - Redis: Yes (Upstash Redis)
+   ```
+
+   **Option B: Using Web UI**
+   - Go to [fly.io/dashboard](https://fly.io/dashboard)
+   - Connect your GitHub repository
+   - Follow the prompts
+
+5. **Create Persistent Volume for Token Storage**
+
+   **Why?** Yahoo OAuth tokens refresh automatically, but need persistent storage to survive container restarts.
+
+   **Via CLI:**
+   ```bash
+   flyctl volumes create yahoo_tokens --size 1 --region iad
+   ```
+
+   **Via Web UI:**
+   - Go to your app → **Volumes**
+   - Click **Create Volume**
+   - Name: `yahoo_tokens`
+   - Size: `1GB`
+   - Region: Same as your app (e.g., `iad`)
+
+6. **Set Secrets (Environment Variables)**
+
+   **Via CLI:**
+   ```bash
+   flyctl secrets set \
+     FLASK_ENV=production \
+     YAHOO_CLIENT_ID=<your-client-id> \
+     YAHOO_CLIENT_SECRET=<your-client-secret> \
+     YAHOO_ACCESS_TOKEN=<from-oauth-setup> \
+     YAHOO_REFRESH_TOKEN=<from-oauth-setup> \
+     LEAGUE_ID=<your-league-id> \
+     WAFFLE_BOWL_TEAMS=6 \
+     CACHE_LIVE_SCORES=10 \
+     NFL_SEASON=2025
+   ```
+
+   **Via Web UI:**
+   - Go to your app → **Secrets**
+   - Add each secret individually (or import from .env)
+
+7. **Update Yahoo Developer Redirect URI**
+   - Get your Fly.io app URL (e.g., `https://wafflebowl.fly.dev`)
+   - Go to [Yahoo Developer Apps](https://developer.yahoo.com/apps/)
+   - Update Redirect URI to: `https://your-app.fly.dev/auth/callback`
+
+8. **Deploy!**
+   ```bash
+   flyctl deploy
+   ```
+
+   Your app will be live at `https://your-app.fly.dev`!
+
+9. **Open Your App**
+   ```bash
+   flyctl open
+   ```
+
+### How Token Refresh Works
+
+The app automatically handles Yahoo OAuth token refresh using persistent storage:
+
+1. **First Deployment**:
+   - `init_tokens.py` creates token file from environment variables
+   - Tokens stored in `/root/.yf_token_store/oauth2.json` (on volume)
+
+2. **Token Refresh**:
+   - YFPY automatically refreshes tokens when they expire
+   - Refreshed tokens written to the persistent volume
+   - **No manual intervention needed!**
+
+3. **Container Restarts**:
+   - Volume persists tokens across restarts
+   - App uses existing (refreshed) tokens
+   - Token refresh continues automatically
+
+**You'll never need to manually update tokens again!** 🎉
 
 ---
 
@@ -174,10 +252,18 @@ Visit `https://localhost:5000` to see your Waffle Bowl!
 
 ### End of Season (After Playoffs)
 
-1. Go to [Railway Dashboard](https://railway.app)
-2. Find your Waffle Bowl project
-3. Click **"Pause"** or **"Stop"** the app
-4. **No charges while paused** (free tier!)
+**Fly.io scales to zero automatically**, so you only pay for what you use. With the free tier and `auto_stop_machines = true` in `fly.toml`, your app will:
+- Stop running when idle (no traffic)
+- **Cost $0 in the off-season** 🎉
+
+If you want to explicitly stop it:
+```bash
+# Scale down to 0 machines
+flyctl scale count 0
+
+# Or suspend the app entirely
+flyctl apps suspend wafflebowl
+```
 
 ### Start of Next Season
 
@@ -185,41 +271,59 @@ Visit `https://localhost:5000` to see your Waffle Bowl!
    - Go to your Yahoo Fantasy league
    - Check the URL for the league ID
    - If it changed (Yahoo sometimes creates new IDs for new seasons):
-     - Update `LEAGUE_ID` in Railway environment variables
+     ```bash
+     flyctl secrets set LEAGUE_ID=<new-league-id>
+     ```
 
-2. **Resume the App**
-   - Go to Railway dashboard
-   - Click **"Resume"** or **"Start"** your Waffle Bowl project
+2. **Resume the App** (if suspended)
+   ```bash
+   # Resume app
+   flyctl apps resume wafflebowl
+
+   # Or scale back up
+   flyctl scale count 1
+   ```
+
+   Or just visit your app URL - it'll auto-start on first request!
 
 3. **Verify OAuth Tokens**
-   - The app should auto-refresh tokens
-   - If you get auth errors, re-run the OAuth setup:
+   - Tokens are stored in the persistent volume
+   - They should auto-refresh automatically
+   - If you get auth errors (rare):
      ```bash
+     # Re-run OAuth setup locally
      python -m app.utils.oauth_setup
+
+     # Update secrets on Fly.io
+     flyctl secrets set \
+       YAHOO_ACCESS_TOKEN=<new-token> \
+       YAHOO_REFRESH_TOKEN=<new-refresh-token>
      ```
-   - Update `YAHOO_ACCESS_TOKEN` and `YAHOO_REFRESH_TOKEN` in Railway
 
 4. **Done!** 🧇
    - Your Waffle Bowl is live for the new season
    - No code changes needed
    - Same URL as last year
+   - Tokens persist automatically
 
 ### Why This Works
 
 - **No database** - All data fetched fresh from Yahoo API
 - **Stateless design** - No historical data stored
 - **Auto season detection** - App detects current NFL week automatically
-- **Token refresh** - OAuth tokens auto-refresh (should last year-to-year)
-- **Free hosting** - Railway's free tier is perfect for seasonal apps
+- **Persistent token storage** - Volume preserves refreshed tokens across seasons
+- **Auto-scaling** - Scales to zero when idle, starts on first request
+- **Free tier** - Fly.io free tier covers seasonal apps perfectly
 
 ### Potential Year-Over-Year Issues
 
 | Issue | Solution |
 |-------|----------|
-| League ID changed | Update `LEAGUE_ID` env var in Railway |
-| OAuth tokens expired | Re-run `python -m app.utils.oauth_setup` |
-| Yahoo API changes | Check for YFPY library updates: `pip install --upgrade yfpy` |
+| League ID changed | `flyctl secrets set LEAGUE_ID=<new-id>` |
+| OAuth tokens expired (rare) | Re-run `python -m app.utils.oauth_setup` and update secrets |
+| Yahoo API changes | Update YFPY: `pip install --upgrade yfpy`, redeploy |
 | Playoff weeks shifted | App auto-detects weeks, but verify bracket timing |
+| Volume deleted | Recreate volume, redeploy (tokens will reinitialize) |
 
 ---
 
@@ -315,8 +419,9 @@ python -m app.utils.oauth_setup
 - **Yahoo API**: YFPY 13.0.0 (Yahoo Fantasy API wrapper)
 - **Frontend**: HTMX 2.0.4 (dynamic updates without JavaScript)
 - **CSS**: Tailwind CSS (utility-first styling)
-- **Caching**: Redis 5.2.0 (fast caching layer)
-- **Deployment**: Railway + Gunicorn
+- **Caching**: Redis 5.2.0 (Upstash Redis on Fly.io)
+- **Deployment**: Fly.io + Docker + Gunicorn
+- **Persistent Storage**: Fly.io Volumes (for OAuth token refresh)
 
 ---
 
