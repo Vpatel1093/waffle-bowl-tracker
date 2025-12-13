@@ -206,31 +206,66 @@ class YahooService:
                     return val.decode('utf-8')
                 return str(val) if val is not None else ''
 
-            roster_data = self.yf_query.get_team_roster_by_week(team_id, week)
+            # Use get_team_roster_player_stats_by_week to get stats
+            roster_data = self.yf_query.get_team_roster_player_stats_by_week(team_id, week)
 
-            # YFPY might return just roster or a team object
-            if hasattr(roster_data, 'roster'):
-                # It's a team object with roster
-                roster = roster_data.roster
-                team_name = to_str(roster_data.name) if hasattr(roster_data, 'name') else f'Team {team_id}'
-                manager_name = to_str(roster_data.manager.nickname) if hasattr(roster_data, 'manager') and roster_data.manager else 'Unknown'
-            else:
-                # It's just a roster object
-                roster = roster_data
-                team_name = f'Team {team_id}'
-                manager_name = 'Unknown'
+            team_name = f'Team {team_id}'
+            manager_name = 'Unknown'
 
+            # YFPY returns a list of players directly
             players = []
-            if roster and hasattr(roster, 'players'):
-                for player in roster.players:
+            if isinstance(roster_data, list):
+                for player in roster_data:
+                    player_points = 0.0
+                    if hasattr(player, 'player_points') and hasattr(player.player_points, 'total'):
+                        player_points = float(player.player_points.total)
+
+                    player_name = 'Unknown'
+                    if hasattr(player, 'name'):
+                        if hasattr(player.name, 'full'):
+                            player_name = to_str(player.name.full)
+                        else:
+                            player_name = to_str(player.name)
+
+                    selected_position = 'BN'
+                    if hasattr(player, 'selected_position'):
+                        if hasattr(player.selected_position, 'position'):
+                            selected_position = to_str(player.selected_position.position)
+                        else:
+                            selected_position = to_str(player.selected_position)
+
                     players.append({
-                        'player_id': to_str(player.player_id),
-                        'name': to_str(player.name.full) if hasattr(player.name, 'full') else to_str(player.name),
-                        'position': to_str(player.display_position),
+                        'player_id': to_str(player.player_id) if hasattr(player, 'player_id') else '',
+                        'name': player_name,
+                        'position': to_str(player.display_position) if hasattr(player, 'display_position') else 'N/A',
                         'team': to_str(player.editorial_team_abbr) if hasattr(player, 'editorial_team_abbr') else 'N/A',
-                        'selected_position': to_str(player.selected_position.position) if hasattr(player, 'selected_position') else 'BN',
-                        'points': float(player.player_points.total) if hasattr(player, 'player_points') else 0.0
+                        'selected_position': selected_position,
+                        'points': player_points
                     })
+
+            # Sort players: starters in lineup order, then bench
+            # Lineup order: QB, WR, WR, RB, RB, TE, W/R/T, K, DEF, BN
+            position_order = {
+                'QB': 0,
+                'WR': 1,
+                'RB': 3,
+                'TE': 5,
+                'W/R/T': 6,
+                'FLEX': 6,  # Some leagues use FLEX instead of W/R/T
+                'K': 7,
+                'DEF': 8,
+                'BN': 9,
+                'IR': 10  # Injured reserve at the end
+            }
+
+            def sort_key(p):
+                pos = p['selected_position']
+                # Get position order, default to 99 for unknown positions
+                order = position_order.get(pos, 99)
+                # Secondary sort by name for same positions (e.g., multiple WRs)
+                return (order, p['name'])
+
+            players.sort(key=sort_key)
 
             return {
                 'team_id': to_str(team_id),
@@ -242,6 +277,8 @@ class YahooService:
 
         except Exception as e:
             print(f"Error fetching roster for team {team_id}: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     @cache.memoize(timeout=15)  # 15 seconds for live scores
@@ -287,9 +324,18 @@ class YahooService:
                 print(f"  [DEBUG] roster_stats is a list with {len(roster_stats)} items")
 
                 player_count = 0
+                starter_count = 0
                 for player in roster_stats:
                     player_count += 1
                     player_points = 0.0
+
+                    # Check if player is a starter (not on bench)
+                    selected_position = 'BN'
+                    if hasattr(player, 'selected_position'):
+                        if hasattr(player.selected_position, 'position'):
+                            selected_position = to_str(player.selected_position.position)
+                        else:
+                            selected_position = to_str(player.selected_position)
 
                     # Debug first player extensively
                     if player_count == 1:
@@ -306,19 +352,22 @@ class YahooService:
                     else:
                         print(f"  [DEBUG] Player {player_count} has no player_points attribute")
 
-                    team_points += player_points
+                    # Only count starters (not bench players)
+                    if selected_position != 'BN':
+                        team_points += player_points
+                        starter_count += 1
 
-                    # Debug: print first few players
-                    if player_count <= 3:
-                        player_name = 'Unknown'
-                        if hasattr(player, 'name'):
-                            if hasattr(player.name, 'full'):
-                                player_name = to_str(player.name.full)
-                            else:
-                                player_name = to_str(player.name)
-                        print(f"    Player {player_count}: {player_name} - {player_points} pts")
+                        # Debug: print first few starters
+                        if starter_count <= 3:
+                            player_name = 'Unknown'
+                            if hasattr(player, 'name'):
+                                if hasattr(player.name, 'full'):
+                                    player_name = to_str(player.name.full)
+                                else:
+                                    player_name = to_str(player.name)
+                            print(f"    Starter {starter_count}: {player_name} ({selected_position}) - {player_points} pts")
 
-                print(f"    Total from {player_count} players: {team_points} pts")
+                print(f"    Total from {starter_count} starters (excluding {player_count - starter_count} bench): {team_points} pts")
 
             # Handle if it's an object with roster
             elif hasattr(roster_stats, 'name'):
