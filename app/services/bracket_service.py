@@ -186,42 +186,28 @@ class BracketService:
             return bracket
 
         week = scoreboard_data.get('week')
-        print(f"📊 Updating bracket with scoreboard for Week {week}")
 
         # Use the flat team_scores lookup from scoreboard
         scores_by_team = scoreboard_data.get('team_scores', {})
-        print(f"  Found scores for {len(scores_by_team)} teams in scoreboard")
 
         # Collect all Waffle Bowl team IDs that we need
         waffle_team_ids = set()
         for team in bracket['teams']:
             waffle_team_ids.add(team['team_id'])
 
-        print(f"  Waffle Bowl team IDs: {waffle_team_ids}")
-
         # Fetch missing team scores (teams not in playoff scoreboard)
         if yahoo_service:
             missing_teams = waffle_team_ids - set(scores_by_team.keys())
-            print(f"  Missing teams not in scoreboard: {missing_teams}")
 
             for team_id in missing_teams:
-                print(f"  Fetching individual points for team {team_id}...")
                 team_points = yahoo_service.get_team_points(team_id, week)
                 if team_points:
                     scores_by_team[team_id] = team_points
-                    print(f"    ✓ Team {team_id}: {team_points.get('name')} - {team_points.get('points', 0)} pts")
-                else:
-                    print(f"    ✗ Failed to fetch points for team {team_id}")
-
-        print(f"  Total scores available: {len(scores_by_team)} teams")
-        for team_id, team_data in scores_by_team.items():
-            print(f"    Team {team_id}: {team_data.get('name', 'Unknown')} - {team_data.get('points', 0)} pts")
 
         # Check if this week is complete (all games finished)
         week_is_complete = False
         if current_week is not None:
             week_is_complete = self.is_week_complete(week, current_week, scoreboard_data)
-            print(f"  Week {week} complete: {week_is_complete}")
         else:
             # If current_week not provided, assume we can determine winners
             week_is_complete = True
@@ -237,15 +223,11 @@ class BracketService:
         # Update quarterfinals if this is QF week
         qf = bracket['rounds']['quarterfinals']
         if week == qf['week']:
-            print(f"🏈 Updating QF for Week {week}")
             for i, matchup in enumerate(qf['matchups']):
                 team1_id = matchup['team1']['team_id']
                 team2_id = matchup['team2']['team_id']
-                print(f"  QF Matchup {i+1}: Looking for teams {team1_id} vs {team2_id}")
 
-                print(f"Matchup object: {matchup}")
                 if team1_id in scores_by_team and team2_id in scores_by_team:
-                    print(f"    ✓ Found both teams!")
                     # Add scores to teams
                     matchup['team1']['points'] = scores_by_team[team1_id]['points']
                     matchup['team2']['points'] = scores_by_team[team2_id]['points']
@@ -255,11 +237,6 @@ class BracketService:
                         loser = determine_loser(scores_by_team[team1_id], scores_by_team[team2_id])
                         if loser:
                             matchup['loser'] = loser
-                            print(f"      Loser: {loser.get('name')}")
-                    else:
-                        print(f"      Week not complete - not declaring winner yet")
-                else:
-                    print(f"    ✗ Missing teams! {team1_id} found: {team1_id in scores_by_team}, {team2_id} found: {team2_id in scores_by_team}")
 
         # Advance QF losers to semifinals (only if QF week is complete)
         # Use scoreboard data if we're processing the QF week, otherwise just compare week numbers
@@ -269,7 +246,6 @@ class BracketService:
             sf = bracket['rounds']['semifinals']
             sf['matchups'][0]['team1'] = qf['matchups'][0]['loser']
             sf['matchups'][1]['team1'] = qf['matchups'][1]['loser']
-            print(f"  ✓ Advancing QF losers to semifinals")
 
         # Update semifinals if this is SF week
         sf = bracket['rounds']['semifinals']
@@ -297,7 +273,6 @@ class BracketService:
             final = bracket['rounds']['finals']
             final['matchup']['team1'] = sf['matchups'][0]['loser']
             final['matchup']['team2'] = sf['matchups'][1]['loser']
-            print(f"  ✓ Advancing SF losers to finals")
 
         # Update finals if this is final week
         final = bracket['rounds']['finals']

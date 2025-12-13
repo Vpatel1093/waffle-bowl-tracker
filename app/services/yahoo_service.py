@@ -305,15 +305,10 @@ class YahooService:
                 return str(val) if val is not None else ''
 
             # Get roster with player stats for the week
-            print(f"  [get_team_points] Fetching roster+stats for team {team_id}, week {week}")
             roster_stats = self.yf_query.get_team_roster_player_stats_by_week(team_id, week)
 
             if not roster_stats:
-                print(f"  [get_team_points] No roster stats returned for team {team_id}")
                 return None
-
-            # DEBUG: Inspect the response structure
-            print(f"  [DEBUG] roster_stats type: {type(roster_stats)}")
 
             # Extract team name and sum player points
             team_points = 0.0
@@ -321,12 +316,7 @@ class YahooService:
 
             # Check if roster_stats is a list (YFPY returns list of players)
             if isinstance(roster_stats, list):
-                print(f"  [DEBUG] roster_stats is a list with {len(roster_stats)} items")
-
-                player_count = 0
-                starter_count = 0
                 for player in roster_stats:
-                    player_count += 1
                     player_points = 0.0
 
                     # Check if player is a starter (not on bench)
@@ -337,49 +327,18 @@ class YahooService:
                         else:
                             selected_position = to_str(player.selected_position)
 
-                    # Debug first player extensively
-                    if player_count == 1:
-                        print(f"  [DEBUG] First player type: {type(player)}")
-                        if hasattr(player, '__dict__'):
-                            print(f"  [DEBUG] First player.__dict__ keys: {player.__dict__.keys()}")
-
                     # Try to get player points
                     if hasattr(player, 'player_points'):
                         if hasattr(player.player_points, 'total'):
                             player_points = float(player.player_points.total)
-                        else:
-                            print(f"  [DEBUG] Player {player_count} player_points has no total. Attributes: {dir(player.player_points)}")
-                    else:
-                        print(f"  [DEBUG] Player {player_count} has no player_points attribute")
 
                     # Only count starters (not bench players)
                     if selected_position != 'BN':
                         team_points += player_points
-                        starter_count += 1
-
-                        # Debug: print first few starters
-                        if starter_count <= 3:
-                            player_name = 'Unknown'
-                            if hasattr(player, 'name'):
-                                if hasattr(player.name, 'full'):
-                                    player_name = to_str(player.name.full)
-                                else:
-                                    player_name = to_str(player.name)
-                            print(f"    Starter {starter_count}: {player_name} ({selected_position}) - {player_points} pts")
-
-                print(f"    Total from {starter_count} starters (excluding {player_count - starter_count} bench): {team_points} pts")
 
             # Handle if it's an object with roster
             elif hasattr(roster_stats, 'name'):
                 team_name = to_str(roster_stats.name)
-                print(f"  [DEBUG] Found team object with name: {team_name}")
-
-                # Handle other object structures if needed
-                if hasattr(roster_stats, 'roster') and hasattr(roster_stats.roster, 'players'):
-                    print(f"  [DEBUG] Processing roster.players")
-                    # Similar logic as above for list
-
-            print(f"  [get_team_points] Team {team_id} ({team_name}): {team_points} pts")
 
             return {
                 'team_id': to_str(team_id),

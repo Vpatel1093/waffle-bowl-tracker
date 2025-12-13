@@ -44,11 +44,6 @@ def refresh_bracket():
         # Get bracket status
         bracket_status = bracket_svc.get_bracket_status(bracket, current_week)
 
-        # Debug output
-        print(f"\n🔍 DEBUG - Current week: {current_week}")
-        print(f"🔍 QF week: {qf_week}, SF week: {sf_week}, Final week: {final_week}")
-        print(f"🔍 Fetching scoreboards for weeks <= {current_week}")
-
         return render_template(
             'components/bracket.html',
             bracket=bracket,
