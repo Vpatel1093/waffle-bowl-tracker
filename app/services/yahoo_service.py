@@ -27,11 +27,14 @@ class YahooService:
         auth_dir = Path.home() / '.yf_token_store'
 
         try:
+            # YFPY will read consumer credentials from private.json and tokens from oauth2.json
             self.yf_query = YahooFantasySportsQuery(
                 auth_dir=str(auth_dir),
                 league_id=self.league_id,
                 game_code='nfl',
-                offline=False
+                game_id=None,
+                offline=False,
+                browser_callback=False  # Don't try to open browser in production
             )
         except Exception as e:
             print(f"⚠️  Warning: Could not initialize Yahoo API: {e}")
