@@ -1,19 +1,23 @@
-# fly.toml app configuration file generated for waffle-bowl-tracker-cutzg on 2025-12-13T02:13:45Z
+# fly.toml app configuration file generated for waffle-bowl-tracker on 2025-12-13T02:13:45Z
 #
 # See https://fly.io/docs/reference/configuration/ for information about how to use this file.
 #
 
-app = 'waffle-bowl-tracker-cutzg'
+app = 'waffle-bowl-tracker'
 primary_region = 'iad'
 
 [build]
+
+[mounts]
+  source = "yahoo_tokens"
+  destination = "/root/.yf_token_store"
 
 [http_service]
   internal_port = 8080
   force_https = true
   auto_stop_machines = 'stop'
   auto_start_machines = true
-  min_machines_running = 0
+  min_machines_running = 1
   processes = ['app']
 
 [[vm]]
