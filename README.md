@@ -394,12 +394,11 @@ flyctl apps suspend wafflebowl
 | `REDIS_URL` | Redis connection URL | `redis://localhost:6379` |
 | `LEAGUE_ID` | Yahoo Fantasy league ID | Required |
 | `WAFFLE_BOWL_TEAMS` | Number of teams in bracket | `6` |
-| `CACHE_LIVE_SCORES` | Score cache time (seconds) | `15` |
-| `NFL_SEASON` | Current NFL season | Auto-detected |
+| `CACHE_LIVE_SCORES` | Score cache time (seconds) | `30` |
 
 ### Cache Strategy
 
-- **Live scores**: 15 seconds (configurable via `CACHE_LIVE_SCORES`)
+- **Live scores**: 30 seconds (configurable via `CACHE_LIVE_SCORES`)
 - **Standings**: 1 minute
 - **Rosters**: 15 minutes
 

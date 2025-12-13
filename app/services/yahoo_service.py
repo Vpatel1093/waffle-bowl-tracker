@@ -16,10 +16,10 @@ class YahooService:
             league_id: Yahoo Fantasy league ID (from env if not provided)
         """
         self.league_id = league_id or os.getenv('LEAGUE_ID')
-        self.cache_live_scores = int(os.getenv('CACHE_LIVE_SCORES', 15))
+        self.cache_live_scores = int(os.getenv('CACHE_LIVE_SCORES', 30))
 
-        # Get current season (auto-detect or from env)
-        self.season = int(os.getenv('NFL_SEASON', datetime.now().year))
+        # Get current season (auto-detect from current year)
+        self.season = datetime.now().year
 
         # Initialize YFPY query
         # YFPY will use tokens from ~/.yf_token_store/oauth2.json
@@ -148,7 +148,7 @@ class YahooService:
 
         # Use longer cache for completed weeks (scores don't change)
         cache_key = f'scoreboard_{self.league_id}_{week}'
-        cache_timeout = 86400 if is_complete else self.cache_live_scores  # 24h vs 15s
+        cache_timeout = 86400 if is_complete else self.cache_live_scores
 
         # Try cache first
         cached = cache.get(cache_key)

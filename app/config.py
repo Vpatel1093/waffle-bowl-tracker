@@ -34,10 +34,7 @@ class Config:
     # League Configuration
     LEAGUE_ID = os.getenv('LEAGUE_ID')
     WAFFLE_BOWL_TEAMS = int(os.getenv('WAFFLE_BOWL_TEAMS', 6))
-    CACHE_LIVE_SCORES = int(os.getenv('CACHE_LIVE_SCORES', 15))  # seconds
-
-    # Season
-    NFL_SEASON = os.getenv('NFL_SEASON')  # Auto-detected if not set
+    CACHE_LIVE_SCORES = int(os.getenv('CACHE_LIVE_SCORES', 30))  # seconds
 
 
 class DevelopmentConfig(Config):
