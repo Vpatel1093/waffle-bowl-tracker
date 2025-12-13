@@ -1,0 +1,74 @@
+/* Smooth HTMX transitions */
+.htmx-swapping {
+    opacity: 0;
+    transition: opacity 200ms ease-out;
+}
+
+.htmx-settling {
+    opacity: 1;
+    transition: opacity 200ms ease-in;
+}
+
+/* Smooth fade for bracket updates */
+#bracket-container {
+    transition: opacity 300ms ease-in-out;
+}
+
+/* Hide loading indicator by default */
+.htmx-indicator {
+    opacity: 0;
+    transition: opacity 200ms ease-in;
+}
+
+/* Show loading indicator when HTMX is loading */
+.htmx-request .htmx-indicator,
+.htmx-request.htmx-indicator {
+    opacity: 1;
+}
+
+/* Smooth pulse animation for live indicator */
+@keyframes pulse-subtle {
+    0%, 100% {
+        opacity: 1;
+    }
+    50% {
+        opacity: 0.7;
+    }
+}
+
+.animate-pulse {
+    animation: pulse-subtle 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+/* Smooth modal transitions */
+#team-modal {
+    transition: opacity 200ms ease-in-out;
+}
+
+#team-modal.hidden {
+    opacity: 0;
+    pointer-events: none;
+}
+
+#team-modal:not(.hidden) {
+    opacity: 1;
+}
+
+/* Card hover effects */
+.hover\:border-amber-500:hover {
+    transition: border-color 150ms ease-in-out;
+}
+
+/* Score update highlight (subtle yellow flash) */
+@keyframes score-update {
+    0% {
+        background-color: rgba(251, 191, 36, 0.2);
+    }
+    100% {
+        background-color: transparent;
+    }
+}
+
+.score-updated {
+    animation: score-update 1s ease-out;
+}

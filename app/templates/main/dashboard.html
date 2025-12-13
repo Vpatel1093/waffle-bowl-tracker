@@ -29,23 +29,37 @@
     </div>
 
     <!-- Bracket Component -->
-    <div
-        id="bracket-container"
-        hx-get="/api/bracket/refresh"
-        hx-trigger="load, every 60s"
-        hx-swap="innerHTML"
-        class="bg-white rounded-lg shadow-md p-6 min-h-[400px]"
-    >
-        <!-- HTMX will load bracket here -->
-        <div class="flex items-center justify-center h-64">
-            <div class="text-center">
-                <div class="htmx-indicator">
-                    <svg class="animate-spin h-12 w-12 text-amber-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
-                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                    </svg>
+    <div class="relative">
+        <!-- Loading indicator (shown during refresh) -->
+        <div id="loading-indicator" class="htmx-indicator absolute top-4 right-4 z-10">
+            <div class="flex items-center gap-2 bg-amber-100 text-amber-800 px-3 py-2 rounded-lg shadow-lg">
+                <svg class="animate-spin h-4 w-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                    <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                <span class="text-sm font-medium">Updating...</span>
+            </div>
+        </div>
+
+        <div
+            id="bracket-container"
+            hx-get="/api/bracket/refresh"
+            hx-trigger="load, every 30s"
+            hx-swap="innerHTML transition:true"
+            hx-indicator="#loading-indicator"
+            class="bg-white rounded-lg shadow-md p-6 min-h-[400px]"
+        >
+            <!-- HTMX will load bracket here -->
+            <div class="flex items-center justify-center h-64">
+                <div class="text-center">
+                    <div>
+                        <svg class="animate-spin h-12 w-12 text-amber-600 mx-auto" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                    </div>
+                    <p class="text-gray-600 mt-4">Loading Waffle Bowl bracket...</p>
                 </div>
-                <p class="text-gray-600 mt-4">Loading Waffle Bowl bracket...</p>
             </div>
         </div>
     </div>

@@ -41,7 +41,7 @@ class YahooService:
             print("Make sure you've run: python -m app.utils.oauth_setup")
             self.yf_query = None
 
-    @cache.memoize(timeout=60)  # 1 minute
+    @cache.memoize(timeout=60)  # 1 minute - standings change slowly
     def get_league_info(self) -> Optional[Dict]:
         """Get league metadata.
 
@@ -128,9 +128,10 @@ class YahooService:
             traceback.print_exc()
             return None
 
-    @cache.memoize(timeout=15)  # 15 seconds for live scores
     def get_scoreboard(self, week: int = None) -> Optional[Dict]:
         """Get scoreboard for a specific week.
+
+        Smart caching: Completed weeks cached 24h, active weeks cached per CACHE_LIVE_SCORES
 
         Args:
             week: Week number (uses current week if not specified)
@@ -140,6 +141,19 @@ class YahooService:
         """
         if not self.yf_query:
             return None
+
+        # Check if week is complete for smart caching
+        current_week = self.get_current_week()
+        is_complete = week < current_week if week else False
+
+        # Use longer cache for completed weeks (scores don't change)
+        cache_key = f'scoreboard_{self.league_id}_{week}'
+        cache_timeout = 86400 if is_complete else self.cache_live_scores  # 24h vs 15s
+
+        # Try cache first
+        cached = cache.get(cache_key)
+        if cached is not None:
+            return cached
 
         try:
             # Helper function for byte strings
@@ -178,11 +192,15 @@ class YahooService:
                     'status': matchup.status if hasattr(matchup, 'status') else 'unknown'
                 })
 
-            return {
+            result = {
                 'week': week,
                 'matchups': matchups,
                 'team_scores': team_scores  # Flat lookup for all teams
             }
+
+            # Cache the result with smart timeout
+            cache.set(cache_key, result, timeout=cache_timeout)
+            return result
 
         except Exception as e:
             print(f"Error fetching scoreboard for week {week}: {e}")

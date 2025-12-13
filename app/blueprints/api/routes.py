@@ -6,12 +6,21 @@ from app.services.yahoo_service import YahooService
 from app.services.bracket_service import BracketService
 
 
-@cache.memoize(timeout=15)
+@cache.memoize(timeout=15)  # Match CACHE_LIVE_SCORES
 def get_complete_bracket():
     """Get complete bracket with all data - cached for 15 seconds.
 
+    Optimized to only fetch ACTIVE week data (not all 3 weeks).
+    Pre-fetches rosters for active week only (6 rosters vs 18).
+
+    Caching strategy:
+    - This function: 15 seconds (aligned with live scores)
+    - Scoreboards: 15s for active week, 24h for completed weeks (smart caching)
+    - Rosters: 15 minutes (don't change during games)
+    - Standings: 60 seconds
+
     Returns:
-        Dict with bracket, current_week, and bracket_status, or None if error
+        Dict with bracket, current_week, bracket_status, standings, and rosters
     """
     try:
         yahoo = YahooService()
@@ -31,17 +40,66 @@ def get_complete_bracket():
         # Create bracket structure
         bracket = bracket_svc.create_bracket_structure(waffle_teams, current_week)
 
-        # Get scoreboard data for all relevant weeks
+        # Get all relevant weeks
         qf_week = bracket['rounds']['quarterfinals']['week']
         sf_week = bracket['rounds']['semifinals']['week']
         final_week = bracket['rounds']['finals']['week']
 
-        # Fetch scoreboards for completed/ongoing weeks
-        for week in [qf_week, sf_week, final_week]:
-            if week <= current_week:
-                scoreboard = yahoo.get_scoreboard(week)
-                if scoreboard:
-                    bracket = bracket_svc.update_bracket_with_results(bracket, scoreboard, yahoo, current_week)
+        # Determine active week (only fetch scores for week in progress)
+        if current_week == qf_week:
+            active_week = qf_week
+        elif current_week == sf_week:
+            active_week = sf_week
+        elif current_week == final_week:
+            active_week = final_week
+        elif current_week > qf_week:
+            # Between rounds, use most recent
+            active_week = min(current_week, final_week)
+        else:
+            active_week = None
+
+        # Pre-fetch rosters ONLY for active week (not all 3 weeks)
+        rosters = {}
+        team_points_by_week = {}
+
+        for team in waffle_teams:
+            team_id = team['team_id']
+            rosters[team_id] = {}
+            team_points_by_week[team_id] = {}
+
+            # Only fetch roster for active week
+            if active_week:
+                roster = yahoo.get_team_roster(team_id, active_week)
+                if roster:
+                    rosters[team_id][active_week] = roster
+
+                    # Calculate points from roster (starters only)
+                    points = sum(
+                        p['points'] for p in roster.get('players', [])
+                        if p.get('selected_position') != 'BN'
+                    )
+                    team_points_by_week[team_id][active_week] = points
+
+        # Fetch scoreboard ONLY for active week
+        if active_week and active_week <= current_week:
+            scoreboard = yahoo.get_scoreboard(active_week)
+            if scoreboard:
+                # Merge roster-calculated points for missing teams
+                if 'team_scores' not in scoreboard:
+                    scoreboard['team_scores'] = {}
+
+                for team_id, weeks in team_points_by_week.items():
+                    if active_week in weeks and team_id not in scoreboard['team_scores']:
+                        scoreboard['team_scores'][team_id] = {
+                            'team_id': team_id,
+                            'points': weeks[active_week],
+                            'week': active_week
+                        }
+
+                # Update bracket with active week results
+                bracket = bracket_svc.update_bracket_with_results(
+                    bracket, scoreboard, yahoo_service=None, current_week=current_week
+                )
 
         # Get bracket status
         bracket_status = bracket_svc.get_bracket_status(bracket, current_week)
@@ -50,7 +108,8 @@ def get_complete_bracket():
             'bracket': bracket,
             'current_week': current_week,
             'bracket_status': bracket_status,
-            'standings': standings
+            'standings': standings,
+            'rosters': rosters  # All rosters pre-fetched
         }
 
     except Exception as e:
@@ -106,18 +165,17 @@ def bracket_status():
 def team_details(team_id):
     """Return team details modal HTML fragment."""
     try:
-        yahoo = YahooService()
-
-        # Get cached bracket data (has standings and current week)
+        # Get cached bracket data (has pre-fetched rosters!)
         data = get_complete_bracket()
         if not data:
             return render_template('components/team_details.html', team=None, roster=None)
 
         current_week = data['current_week']
         standings = data['standings']
+        rosters = data['rosters']
 
-        # Get team roster
-        roster = yahoo.get_team_roster(team_id, current_week)
+        # Get roster from pre-fetched data (no API call!)
+        roster = rosters.get(team_id, {}).get(current_week)
 
         # Find team in standings
         team = next((t for t in standings if t['team_id'] == team_id), None)
@@ -143,14 +201,13 @@ def matchup_details(round_name, matchup_index):
         matchup_index: 0 or 1 (for qf/sf), ignored for final
     """
     try:
-        yahoo = YahooService()
-
-        # Get cached bracket (already has all scoreboard data!)
+        # Get cached bracket (has all scoreboard data AND pre-fetched rosters!)
         data = get_complete_bracket()
         if not data:
             return render_template('components/matchup_details.html', matchup=None)
 
         bracket = data['bracket']
+        rosters = data['rosters']
 
         # Extract the matchup based on round_name
         matchup = None
@@ -183,9 +240,9 @@ def matchup_details(round_name, matchup_index):
         else:
             return '<div class="text-center py-8"><p class="text-gray-600">Invalid round</p></div>'
 
-        # Fetch rosters for both teams for the specific week
-        team1_roster = yahoo.get_team_roster(team1_id, week)
-        team2_roster = yahoo.get_team_roster(team2_id, week)
+        # Get rosters from pre-fetched data (no API calls!)
+        team1_roster = rosters.get(team1_id, {}).get(week)
+        team2_roster = rosters.get(team2_id, {}).get(week)
 
         # Override roster names with actual team names from matchup
         if team1_roster:
