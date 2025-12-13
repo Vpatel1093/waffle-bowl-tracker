@@ -125,17 +125,7 @@ Visit `https://localhost:5000` to see your Waffle Bowl!
 
 ### Initial Deployment
 
-1. **Push to GitHub**
-   ```bash
-   git init
-   git add .
-   git commit -m "Initial commit - Waffle Bowl tracker"
-   git branch -M main
-   git remote add origin <your-repo-url>
-   git push -u origin main
-   ```
-
-2. **Install Fly.io CLI**
+1. **Install Fly.io CLI**
    ```bash
    # macOS
    brew install flyctl
@@ -144,105 +134,169 @@ Visit `https://localhost:5000` to see your Waffle Bowl!
    curl -L https://fly.io/install.sh | sh
    ```
 
-3. **Login to Fly.io**
+2. **Login to Fly.io**
    ```bash
    flyctl auth login
    ```
 
-4. **Launch App (via CLI or Web UI)**
-
-   **Option A: Using CLI**
+3. **Create Upstash Redis** (for caching)
    ```bash
-   # Navigate to project
-   cd waffle-bowl-tracker
-
-   # Launch (will use existing fly.toml)
-   flyctl launch --no-deploy
-
-   # When prompted:
-   # - Choose app name (e.g., "wafflebowl")
-   # - Select region (e.g., "iad" - US East)
-   # - PostgreSQL: No
-   # - Redis: Yes (Upstash Redis)
+   fly redis create
+   # Follow prompts to create Redis instance
+   # Save the REDIS_URL for later
    ```
 
-   **Option B: Using Web UI**
-   - Go to [fly.io/dashboard](https://fly.io/dashboard)
-   - Connect your GitHub repository
-   - Follow the prompts
-
-5. **Create Persistent Volume for Token Storage**
+4. **Create Persistent Volume** (for OAuth token storage)
+   ```bash
+   flyctl volumes create yahoo_tokens --size 1 --region iad --app waffle-bowl-tracker
+   ```
 
    **Why?** Yahoo OAuth tokens refresh automatically, but need persistent storage to survive container restarts.
 
-   **Via CLI:**
+5. **Get Fresh OAuth Tokens** (CRITICAL STEP!)
+
+   **⚠️ IMPORTANT:** You must do this step **immediately before** setting secrets in step 6. Yahoo access tokens expire in ~1 hour!
+
    ```bash
-   flyctl volumes create yahoo_tokens --size 1 --region iad
+   # On your LOCAL machine, run oauth setup
+   cd waffle-bowl-tracker
+   python -m app.utils.oauth_setup
+
+   # This opens your browser for Yahoo authorization
+   # After authorizing, tokens are saved to ~/.yf_token_store/token.json
+
+   # Immediately copy the tokens:
+   cat ~/.yf_token_store/token.json
    ```
 
-   **Via Web UI:**
-   - Go to your app → **Volumes**
-   - Click **Create Volume**
-   - Name: `yahoo_tokens`
-   - Size: `1GB`
-   - Region: Same as your app (e.g., `iad`)
+   You'll see something like:
+   ```json
+   {
+     "access_token": "YbZLBxmftF...",
+     "refresh_token": "AIiXPGl5xWmggPSL...",
+     "consumer_key": "dj0yJmk9...",
+     "consumer_secret": "3ec799f2...",
+     "guid": null,
+     "token_time": 1765608310.327566,
+     "token_type": "bearer"
+   }
+   ```
 
-6. **Set Secrets (Environment Variables)**
+   **Copy the `access_token` and `refresh_token` values** - you'll need them in the next step!
 
-   **Via CLI:**
+6. **Set Secrets** (immediately after getting tokens!)
+
+   **⏱️ TIME SENSITIVE:** Run this within 5 minutes of step 5 to avoid token expiry!
+
    ```bash
    flyctl secrets set \
      FLASK_ENV=production \
-     YAHOO_CLIENT_ID=<your-client-id> \
-     YAHOO_CLIENT_SECRET=<your-client-secret> \
-     YAHOO_ACCESS_TOKEN=<from-oauth-setup> \
-     YAHOO_REFRESH_TOKEN=<from-oauth-setup> \
-     LEAGUE_ID=<your-league-id> \
+     YAHOO_CLIENT_ID=<your-client-id-from-yahoo-developer> \
+     YAHOO_CLIENT_SECRET=<your-client-secret-from-yahoo-developer> \
+     YAHOO_ACCESS_TOKEN=<paste-access-token-from-step-5> \
+     YAHOO_REFRESH_TOKEN=<paste-refresh-token-from-step-5> \
+     REDIS_URL=<redis-url-from-step-3> \
+     LEAGUE_ID=<your-yahoo-league-id> \
      WAFFLE_BOWL_TEAMS=6 \
-     CACHE_LIVE_SCORES=10 \
-     NFL_SEASON=2025
+     CACHE_LIVE_SCORES=15 \
+     -a waffle-bowl-tracker
    ```
 
-   **Via Web UI:**
-   - Go to your app → **Secrets**
-   - Add each secret individually (or import from .env)
-
-7. **Update Yahoo Developer Redirect URI**
-   - Get your Fly.io app URL (e.g., `https://wafflebowl.fly.dev`)
-   - Go to [Yahoo Developer Apps](https://developer.yahoo.com/apps/)
-   - Update Redirect URI to: `https://your-app.fly.dev/auth/callback`
-
-8. **Deploy!**
+7. **Deploy!**
    ```bash
-   flyctl deploy
+   fly deploy -a waffle-bowl-tracker
    ```
 
-   Your app will be live at `https://your-app.fly.dev`!
+   Your app will be live at `https://waffle-bowl-tracker.fly.dev`!
 
-9. **Open Your App**
+8. **Verify Deployment**
    ```bash
-   flyctl open
+   # Watch the logs
+   fly logs -a waffle-bowl-tracker
+
+   # You should see:
+   # "📝 Creating private.json with consumer credentials..."
+   # "✅ Created /root/.yf_token_store/private.json"
+   # "📝 Initializing Yahoo OAuth tokens from environment variables..."
+   # "✅ Token file created at /root/.yf_token_store/token.json"
+
+   # NO "Enter verifier" prompts = success!
+
+   # Open your app
+   fly open -a waffle-bowl-tracker
    ```
+
+### Troubleshooting Deployment
+
+#### "Token Expired" Error
+If you see `OAuth oauth_problem="token_expired"` in the logs:
+
+1. **Get fresh tokens** (tokens expire in ~1 hour):
+   ```bash
+   # On local machine
+   python -m app.utils.oauth_setup
+   cat ~/.yf_token_store/token.json
+   ```
+
+2. **Update secrets immediately**:
+   ```bash
+   flyctl secrets set \
+     YAHOO_ACCESS_TOKEN="<new-access-token>" \
+     YAHOO_REFRESH_TOKEN="<new-refresh-token>" \
+     -a waffle-bowl-tracker
+   ```
+
+3. **Clean token file and restart**:
+   ```bash
+   fly ssh console -a waffle-bowl-tracker
+   rm /root/.yf_token_store/token.json
+   exit
+
+   fly apps restart waffle-bowl-tracker
+   ```
+
+#### "Enter Verifier" Prompts in Logs
+This means token files are missing or invalid. Follow the "Token Expired" steps above.
+
+#### Debugging Commands
+```bash
+# SSH into app
+fly ssh console -a waffle-bowl-tracker
+
+# Check token files
+ls /root/.yf_token_store/
+cat /root/.yf_token_store/token.json
+
+# Check secrets are set
+env | grep YAHOO
+
+# View logs
+fly logs -a waffle-bowl-tracker
+
+# Connect to Redis
+fly redis connect
+```
 
 ### How Token Refresh Works
 
 The app automatically handles Yahoo OAuth token refresh using persistent storage:
 
 1. **First Deployment**:
-   - `init_tokens.py` creates token file from environment variables
-   - Tokens stored in `/root/.yf_token_store/oauth2.json` (on volume)
+   - `init_tokens.py` creates token files from environment variables
+   - Files created: `private.json` (consumer credentials) and `token.json` (OAuth tokens)
+   - Both stored in `/root/.yf_token_store/` (on persistent volume)
 
-2. **Token Refresh**:
-   - YFPY automatically refreshes tokens when they expire
-   - Refreshed tokens written to the persistent volume
-   - **No manual intervention needed!**
+2. **Automatic Token Refresh**:
+   - YFPY automatically refreshes tokens when they expire (tokens expire every ~1 hour)
+   - Refreshed tokens are written back to `token.json` on the persistent volume
+   - The refresh_token is long-lived and enables automatic renewal
 
 3. **Container Restarts**:
-   - Volume persists tokens across restarts
-   - App uses existing (refreshed) tokens
+   - Persistent volume preserves `token.json` across restarts
+   - App uses existing (possibly refreshed) tokens
    - Token refresh continues automatically
 
-**You'll never need to manually update tokens again!** 🎉
+**After initial deployment, you'll never need to manually update tokens again!** 🎉
 
 ---
 
