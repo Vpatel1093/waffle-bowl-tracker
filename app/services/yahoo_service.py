@@ -147,21 +147,23 @@ class YahooService:
 
             scoreboard = self.yf_query.get_league_scoreboard_by_week(week)
 
-            # Get ALL teams from league to get their scores
-            # (not just the matchup pairings)
-            all_teams_scores = {}
-
             matchups = []
+            # Also collect all team scores in a flat dict for easy lookup
+            team_scores = {}
+
             for matchup in scoreboard.matchups:
                 teams = []
                 for team in matchup.teams:
-                    teams.append({
+                    team_data = {
                         'team_id': to_str(team.team_id),
                         'team_key': to_str(team.team_key),
                         'name': to_str(team.name),
                         'points': float(team.team_points.total) if hasattr(team, 'team_points') else 0.0,
                         'projected_points': float(team.team_projected_points.total) if hasattr(team, 'team_projected_points') else 0.0
-                    })
+                    }
+                    teams.append(team_data)
+                    # Store in lookup dict
+                    team_scores[team_data['team_id']] = team_data
 
                 winner_team_key = matchup.winner_team_key if hasattr(matchup, 'winner_team_key') else None
 
@@ -175,7 +177,8 @@ class YahooService:
 
             return {
                 'week': week,
-                'matchups': matchups
+                'matchups': matchups,
+                'team_scores': team_scores  # Flat lookup for all teams
             }
 
         except Exception as e:
@@ -239,6 +242,106 @@ class YahooService:
 
         except Exception as e:
             print(f"Error fetching roster for team {team_id}: {e}")
+            return None
+
+    @cache.memoize(timeout=15)  # 15 seconds for live scores
+    def get_team_points(self, team_id: str, week: int) -> Optional[Dict]:
+        """Get team's total points for a specific week.
+
+        This is useful for teams not in the scoreboard (eliminated from playoffs).
+
+        Args:
+            team_id: Team ID
+            week: Week number
+
+        Returns:
+            Dict with team points info or None if error
+        """
+        if not self.yf_query:
+            return None
+
+        try:
+            # Helper function for byte strings
+            def to_str(val):
+                if isinstance(val, bytes):
+                    return val.decode('utf-8')
+                return str(val) if val is not None else ''
+
+            # Get roster with player stats for the week
+            print(f"  [get_team_points] Fetching roster+stats for team {team_id}, week {week}")
+            roster_stats = self.yf_query.get_team_roster_player_stats_by_week(team_id, week)
+
+            if not roster_stats:
+                print(f"  [get_team_points] No roster stats returned for team {team_id}")
+                return None
+
+            # DEBUG: Inspect the response structure
+            print(f"  [DEBUG] roster_stats type: {type(roster_stats)}")
+
+            # Extract team name and sum player points
+            team_points = 0.0
+            team_name = f'Team {team_id}'
+
+            # Check if roster_stats is a list (YFPY returns list of players)
+            if isinstance(roster_stats, list):
+                print(f"  [DEBUG] roster_stats is a list with {len(roster_stats)} items")
+
+                player_count = 0
+                for player in roster_stats:
+                    player_count += 1
+                    player_points = 0.0
+
+                    # Debug first player extensively
+                    if player_count == 1:
+                        print(f"  [DEBUG] First player type: {type(player)}")
+                        if hasattr(player, '__dict__'):
+                            print(f"  [DEBUG] First player.__dict__ keys: {player.__dict__.keys()}")
+
+                    # Try to get player points
+                    if hasattr(player, 'player_points'):
+                        if hasattr(player.player_points, 'total'):
+                            player_points = float(player.player_points.total)
+                        else:
+                            print(f"  [DEBUG] Player {player_count} player_points has no total. Attributes: {dir(player.player_points)}")
+                    else:
+                        print(f"  [DEBUG] Player {player_count} has no player_points attribute")
+
+                    team_points += player_points
+
+                    # Debug: print first few players
+                    if player_count <= 3:
+                        player_name = 'Unknown'
+                        if hasattr(player, 'name'):
+                            if hasattr(player.name, 'full'):
+                                player_name = to_str(player.name.full)
+                            else:
+                                player_name = to_str(player.name)
+                        print(f"    Player {player_count}: {player_name} - {player_points} pts")
+
+                print(f"    Total from {player_count} players: {team_points} pts")
+
+            # Handle if it's an object with roster
+            elif hasattr(roster_stats, 'name'):
+                team_name = to_str(roster_stats.name)
+                print(f"  [DEBUG] Found team object with name: {team_name}")
+
+                # Handle other object structures if needed
+                if hasattr(roster_stats, 'roster') and hasattr(roster_stats.roster, 'players'):
+                    print(f"  [DEBUG] Processing roster.players")
+                    # Similar logic as above for list
+
+            print(f"  [get_team_points] Team {team_id} ({team_name}): {team_points} pts")
+
+            return {
+                'team_id': to_str(team_id),
+                'name': team_name,
+                'points': team_points,
+                'week': week
+            }
+        except Exception as e:
+            print(f"Error fetching points for team {team_id}, week {week}: {e}")
+            import traceback
+            traceback.print_exc()
             return None
 
     def get_current_week(self) -> int:

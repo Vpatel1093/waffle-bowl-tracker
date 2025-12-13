@@ -132,13 +132,15 @@ class BracketService:
     def update_bracket_with_results(
         self,
         bracket: Dict,
-        scoreboard_data: Dict
+        scoreboard_data: Dict,
+        yahoo_service=None
     ) -> Dict:
         """Update bracket with actual game results.
 
         Args:
             bracket: Bracket structure from create_bracket_structure
             scoreboard_data: Scoreboard data from YahooService
+            yahoo_service: YahooService instance to fetch missing team scores
 
         Returns:
             Updated bracket with winners/losers
@@ -149,18 +151,34 @@ class BracketService:
         week = scoreboard_data.get('week')
         print(f"📊 Updating bracket with scoreboard for Week {week}")
 
-        # Create a lookup for scores by team_id
-        scores_by_team = {}
-        for matchup in scoreboard_data['matchups']:
-            if len(matchup['teams']) == 2:
-                for team in matchup['teams']:
-                    scores_by_team[team['team_id']] = {
-                        'name': team['name'],
-                        'points': team['points'],
-                        'team_id': team['team_id'],
-                        'team_key': team['team_key']
-                    }
-                    print(f"  Team {team['team_id']}: {team['name']} - {team['points']} pts")
+        # Use the flat team_scores lookup from scoreboard
+        scores_by_team = scoreboard_data.get('team_scores', {})
+        print(f"  Found scores for {len(scores_by_team)} teams in scoreboard")
+
+        # Collect all Waffle Bowl team IDs that we need
+        waffle_team_ids = set()
+        for team in bracket['teams']:
+            waffle_team_ids.add(team['team_id'])
+
+        print(f"  Waffle Bowl team IDs: {waffle_team_ids}")
+
+        # Fetch missing team scores (teams not in playoff scoreboard)
+        if yahoo_service:
+            missing_teams = waffle_team_ids - set(scores_by_team.keys())
+            print(f"  Missing teams not in scoreboard: {missing_teams}")
+
+            for team_id in missing_teams:
+                print(f"  Fetching individual points for team {team_id}...")
+                team_points = yahoo_service.get_team_points(team_id, week)
+                if team_points:
+                    scores_by_team[team_id] = team_points
+                    print(f"    ✓ Team {team_id}: {team_points.get('name')} - {team_points.get('points', 0)} pts")
+                else:
+                    print(f"    ✗ Failed to fetch points for team {team_id}")
+
+        print(f"  Total scores available: {len(scores_by_team)} teams")
+        for team_id, team_data in scores_by_team.items():
+            print(f"    Team {team_id}: {team_data.get('name', 'Unknown')} - {team_data.get('points', 0)} pts")
 
         # Helper to find matchup loser
         def determine_loser(team1_data, team2_data):
@@ -179,6 +197,7 @@ class BracketService:
                 team2_id = matchup['team2']['team_id']
                 print(f"  QF Matchup {i+1}: Looking for teams {team1_id} vs {team2_id}")
 
+                print(f"Matchup object: {matchup}")
                 if team1_id in scores_by_team and team2_id in scores_by_team:
                     print(f"    ✓ Found both teams!")
                     # Add scores to teams
