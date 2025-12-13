@@ -137,6 +137,18 @@
         });
     }
 
+    // Show matchup modal (head-to-head)
+    function showMatchupModal(roundName, matchupIndex) {
+        const modal = document.getElementById('team-modal');
+        modal.classList.remove('hidden');
+
+        // Load matchup details via HTMX
+        htmx.ajax('GET', `/api/matchup/${roundName}/${matchupIndex}/details`, {
+            target: '#team-modal-content',
+            swap: 'innerHTML'
+        });
+    }
+
     // Close modal when clicking outside
     document.getElementById('team-modal').addEventListener('click', function(e) {
         if (e.target === this) {

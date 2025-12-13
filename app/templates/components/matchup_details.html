@@ -1,0 +1,111 @@
+<!-- Head-to-Head Matchup Component -->
+{% if matchup and team1_roster and team2_roster %}
+    <div class="space-y-4">
+        <!-- Matchup Header -->
+        <div class="border-b pb-4">
+            <h4 class="text-2xl font-bold text-gray-900 text-center mb-2">
+                {{ matchup.round_name }} - Week {{ matchup.week }}
+            </h4>
+            <div class="flex items-center justify-center gap-4">
+                <span class="font-semibold text-gray-900">{{ team1_roster.name }}</span>
+                <span class="text-gray-500">vs</span>
+                <span class="font-semibold text-gray-900">{{ team2_roster.name }}</span>
+            </div>
+        </div>
+
+        <!-- Score Summary -->
+        <div class="grid grid-cols-2 gap-4">
+            <div class="bg-gray-50 rounded-lg p-4 text-center">
+                <div class="text-sm text-gray-500 mb-1">{{ team1_roster.name }}</div>
+                <div class="text-3xl font-bold text-gray-900">
+                    {{ "%.1f"|format(matchup.team1_points) }}
+                </div>
+            </div>
+            <div class="bg-gray-50 rounded-lg p-4 text-center">
+                <div class="text-sm text-gray-500 mb-1">{{ team2_roster.name }}</div>
+                <div class="text-3xl font-bold text-gray-900">
+                    {{ "%.1f"|format(matchup.team2_points) }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Side-by-Side Rosters -->
+        <div>
+            <h5 class="font-semibold text-gray-900 mb-3">Roster Comparison</h5>
+            <div class="max-h-96 overflow-y-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50 sticky top-0">
+                        <tr>
+                            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">Slot</th>
+                            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ team1_roster.name[:12] }}</th>
+                            <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Pts</th>
+                            <th class="px-2 py-2 text-left text-xs font-medium text-gray-500 uppercase">{{ team2_roster.name[:12] }}</th>
+                            <th class="px-2 py-2 text-right text-xs font-medium text-gray-500 uppercase">Pts</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-gray-200">
+                        {% set max_players = team1_roster.players|length if team1_roster.players|length > team2_roster.players|length else team2_roster.players|length %}
+                        {% for i in range(max_players) %}
+                            {% set p1 = team1_roster.players[i] if i < team1_roster.players|length else none %}
+                            {% set p2 = team2_roster.players[i] if i < team2_roster.players|length else none %}
+
+                            <tr class="{% if p1 and p1.selected_position != 'BN' %}bg-green-50{% endif %}">
+                                <!-- Slot -->
+                                <td class="px-2 py-2 text-sm">
+                                    {% if p1 %}
+                                        <span class="px-2 py-1 bg-gray-200 rounded text-xs font-semibold">
+                                            {{ p1.selected_position }}
+                                        </span>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Team 1 Player -->
+                                <td class="px-2 py-2 text-sm">
+                                    {% if p1 %}
+                                        <div class="font-medium text-gray-900 truncate">{{ p1.name }}</div>
+                                        <div class="text-xs text-gray-500">{{ p1.team }} - {{ p1.position }}</div>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Team 1 Points -->
+                                <td class="px-2 py-2 text-sm text-right font-semibold {% if p1 and p2 and p1.points > p2.points %}text-green-600{% endif %}">
+                                    {% if p1 %}{{ "%.1f"|format(p1.points) }}{% endif %}
+                                </td>
+
+                                <!-- Team 2 Player -->
+                                <td class="px-2 py-2 text-sm">
+                                    {% if p2 %}
+                                        <div class="font-medium text-gray-900 truncate">{{ p2.name }}</div>
+                                        <div class="text-xs text-gray-500">{{ p2.team }} - {{ p2.position }}</div>
+                                    {% endif %}
+                                </td>
+
+                                <!-- Team 2 Points -->
+                                <td class="px-2 py-2 text-sm text-right font-semibold {% if p1 and p2 and p2.points > p1.points %}text-green-600{% endif %}">
+                                    {% if p2 %}{{ "%.1f"|format(p2.points) }}{% endif %}
+                                </td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="bg-gray-50 font-bold">
+                        <tr>
+                            <td class="px-2 py-2 text-sm">Total</td>
+                            <td class="px-2 py-2 text-sm"></td>
+                            <td class="px-2 py-2 text-sm text-right {% if matchup.team1_points > matchup.team2_points %}text-green-600{% endif %}">
+                                {{ "%.1f"|format(matchup.team1_points) }}
+                            </td>
+                            <td class="px-2 py-2 text-sm"></td>
+                            <td class="px-2 py-2 text-sm text-right {% if matchup.team2_points > matchup.team1_points %}text-green-600{% endif %}">
+                                {{ "%.1f"|format(matchup.team2_points) }}
+                            </td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+{% else %}
+    <div class="text-center py-8">
+        <p class="text-gray-600">Failed to load matchup details.</p>
+    </div>
+{% endif %}

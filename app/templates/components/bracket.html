@@ -35,9 +35,10 @@
 
                     <div class="grid md:grid-cols-2 gap-4">
                         {% for matchup in bracket.rounds.quarterfinals.matchups %}
-                            <div class="bg-white rounded-lg border-2 border-gray-300 p-4">
+                            <div class="bg-white rounded-lg border-2 border-gray-300 p-4 cursor-pointer hover:border-amber-500 hover:shadow-lg transition"
+                                 onclick="showMatchupModal('qf', {{ loop.index0 }})">
                                 <div class="text-xs text-gray-500 mb-3 text-center font-semibold">
-                                    Matchup {{ loop.index }}
+                                    Matchup {{ loop.index }} - Click for details
                                 </div>
 
                                 <!-- Team 1 -->
@@ -115,9 +116,10 @@
 
                     <div class="grid md:grid-cols-2 gap-4">
                         {% for matchup in bracket.rounds.semifinals.matchups %}
-                            <div class="bg-white rounded-lg border-2 border-gray-300 p-4">
+                            <div class="bg-white rounded-lg border-2 border-gray-300 p-4 {% if matchup.team1 and matchup.team2 %}cursor-pointer hover:border-amber-500 hover:shadow-lg transition{% endif %}"
+                                 {% if matchup.team1 and matchup.team2 %}onclick="showMatchupModal('sf', {{ loop.index0 }})"{% endif %}>
                                 <div class="text-xs text-gray-500 mb-3 text-center font-semibold">
-                                    Semifinal {{ loop.index }}
+                                    Semifinal {{ loop.index }}{% if matchup.team1 and matchup.team2 %} - Click for details{% endif %}
                                 </div>
 
                                 {% if matchup.team1 %}
@@ -167,9 +169,10 @@
                     </div>
 
                     {% set final = bracket.rounds.finals.matchup %}
-                    <div class="bg-white rounded-lg border-4 border-amber-500 p-6">
+                    <div class="bg-white rounded-lg border-4 border-amber-500 p-6 {% if final.team1 and final.team2 %}cursor-pointer hover:shadow-xl transition{% endif %}"
+                         {% if final.team1 and final.team2 %}onclick="showMatchupModal('final', 0)"{% endif %}>
                         <div class="text-center text-sm text-gray-600 mb-4">
-                            Last place on the line!
+                            Last place on the line!{% if final.team1 and final.team2 %} Click for details{% endif %}
                         </div>
 
                         {% if final.team1 %}
