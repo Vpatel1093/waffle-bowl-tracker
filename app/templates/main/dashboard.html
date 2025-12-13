@@ -28,24 +28,6 @@
         </div>
     </div>
 
-    <!-- Bracket Status -->
-    <div
-        id="bracket-status-container"
-        hx-get="/api/bracket/status"
-        hx-trigger="load, every 60s"
-        hx-swap="innerHTML"
-        class="bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg shadow-md p-6 text-white"
-    >
-        <div class="flex items-center justify-center">
-            <div class="text-center">
-                <h2 class="text-2xl font-bold mb-2">Current Status</h2>
-                <p class="text-lg">
-                    Loading bracket status...
-                </p>
-            </div>
-        </div>
-    </div>
-
     <!-- Bracket Component -->
     <div
         id="bracket-container"

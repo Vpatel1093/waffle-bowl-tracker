@@ -1,24 +1,26 @@
 """API blueprint routes for HTMX endpoints."""
 from flask import render_template, current_app
 from app.blueprints.api import api
-from app import limiter
+from app import limiter, cache
 from app.services.yahoo_service import YahooService
 from app.services.bracket_service import BracketService
 
 
-@api.route('/bracket/refresh')
-@limiter.limit("60 per minute")
-def refresh_bracket():
-    """Return updated bracket HTML fragment."""
+@cache.memoize(timeout=15)
+def get_complete_bracket():
+    """Get complete bracket with all data - cached for 15 seconds.
+
+    Returns:
+        Dict with bracket, current_week, and bracket_status, or None if error
+    """
     try:
-        # Initialize services
         yahoo = YahooService()
         bracket_svc = BracketService()
 
         # Get standings
         standings = yahoo.get_league_standings()
         if not standings:
-            return render_template('components/bracket.html', bracket=None)
+            return None
 
         # Get Waffle Bowl teams (bottom 6)
         waffle_teams = bracket_svc.get_waffle_bowl_teams(standings)
@@ -44,15 +46,36 @@ def refresh_bracket():
         # Get bracket status
         bracket_status = bracket_svc.get_bracket_status(bracket, current_week)
 
+        return {
+            'bracket': bracket,
+            'current_week': current_week,
+            'bracket_status': bracket_status,
+            'standings': standings
+        }
+
+    except Exception as e:
+        current_app.logger.error(f"Error building complete bracket: {e}")
+        return None
+
+
+@api.route('/bracket/refresh')
+@limiter.limit("60 per minute")
+def refresh_bracket():
+    """Return updated bracket HTML fragment with status."""
+    try:
+        data = get_complete_bracket()
+        if not data:
+            return render_template('components/bracket.html', bracket=None, bracket_status=None)
+
         return render_template(
             'components/bracket.html',
-            bracket=bracket,
-            bracket_status=bracket_status
+            bracket=data['bracket'],
+            bracket_status=data['bracket_status']
         )
 
     except Exception as e:
         current_app.logger.error(f"Error refreshing bracket: {e}")
-        return render_template('components/bracket.html', bracket=None)
+        return render_template('components/bracket.html', bracket=None, bracket_status=None)
 
 
 @api.route('/bracket/status')
@@ -60,18 +83,11 @@ def refresh_bracket():
 def bracket_status():
     """Return bracket status HTML fragment."""
     try:
-        yahoo = YahooService()
-        bracket_svc = BracketService()
-
-        standings = yahoo.get_league_standings()
-        if not standings:
+        data = get_complete_bracket()
+        if not data:
             return '<div class="text-center"><p class="text-lg">Unable to load bracket status</p></div>'
 
-        waffle_teams = bracket_svc.get_waffle_bowl_teams(standings)
-        current_week = yahoo.get_current_week()
-        bracket = bracket_svc.create_bracket_structure(waffle_teams, current_week)
-        status = bracket_svc.get_bracket_status(bracket, current_week)
-
+        status = data['bracket_status']
         return f'''
         <div class="flex items-center justify-center">
             <div class="text-center">
@@ -91,25 +107,20 @@ def team_details(team_id):
     """Return team details modal HTML fragment."""
     try:
         yahoo = YahooService()
-        bracket_svc = BracketService()
 
-        # Get current week
-        current_week = yahoo.get_current_week()
+        # Get cached bracket data (has standings and current week)
+        data = get_complete_bracket()
+        if not data:
+            return render_template('components/team_details.html', team=None, roster=None)
+
+        current_week = data['current_week']
+        standings = data['standings']
 
         # Get team roster
         roster = yahoo.get_team_roster(team_id, current_week)
 
-        # Get standings to find this team's info
-        standings = yahoo.get_league_standings()
-        team = None
-        if standings:
-            # Get Waffle Bowl teams and find this one
-            waffle_teams = bracket_svc.get_waffle_bowl_teams(standings)
-            team = next((t for t in waffle_teams if t['team_id'] == team_id), None)
-
-            # If not in Waffle Bowl, check all standings
-            if not team:
-                team = next((t for t in standings if t['team_id'] == team_id), None)
+        # Find team in standings
+        team = next((t for t in standings if t['team_id'] == team_id), None)
 
         return render_template(
             'components/team_details.html',
@@ -119,7 +130,7 @@ def team_details(team_id):
 
     except Exception as e:
         current_app.logger.error(f"Error fetching team details: {e}")
-        return render_template('components/team_details.html', team=None)
+        return render_template('components/team_details.html', team=None, roster=None)
 
 
 @api.route('/matchup/<round_name>/<int:matchup_index>/details')
@@ -133,27 +144,13 @@ def matchup_details(round_name, matchup_index):
     """
     try:
         yahoo = YahooService()
-        bracket_svc = BracketService()
 
-        # Get standings and build bracket
-        standings = yahoo.get_league_standings()
-        if not standings:
+        # Get cached bracket (already has all scoreboard data!)
+        data = get_complete_bracket()
+        if not data:
             return render_template('components/matchup_details.html', matchup=None)
 
-        waffle_teams = bracket_svc.get_waffle_bowl_teams(standings)
-        current_week = yahoo.get_current_week()
-        bracket = bracket_svc.create_bracket_structure(waffle_teams, current_week)
-
-        # Fetch scoreboard data for all relevant weeks
-        qf_week = bracket['rounds']['quarterfinals']['week']
-        sf_week = bracket['rounds']['semifinals']['week']
-        final_week = bracket['rounds']['finals']['week']
-
-        for week in [qf_week, sf_week, final_week]:
-            if week <= current_week:
-                scoreboard = yahoo.get_scoreboard(week)
-                if scoreboard:
-                    bracket = bracket_svc.update_bracket_with_results(bracket, scoreboard, yahoo, current_week)
+        bracket = data['bracket']
 
         # Extract the matchup based on round_name
         matchup = None
@@ -170,7 +167,6 @@ def matchup_details(round_name, matchup_index):
         elif round_name == 'sf':
             matchup = bracket['rounds']['semifinals']['matchups'][matchup_index]
             if not matchup.get('team1') or not matchup.get('team2'):
-                # Teams not yet determined
                 return '<div class="text-center py-8"><p class="text-gray-600">Matchup not yet determined</p></div>'
             team1_id = matchup['team1']['team_id']
             team2_id = matchup['team2']['team_id']
@@ -179,7 +175,6 @@ def matchup_details(round_name, matchup_index):
         elif round_name == 'final':
             matchup = bracket['rounds']['finals']['matchup']
             if not matchup.get('team1') or not matchup.get('team2'):
-                # Teams not yet determined
                 return '<div class="text-center py-8"><p class="text-gray-600">Matchup not yet determined</p></div>'
             team1_id = matchup['team1']['team_id']
             team2_id = matchup['team2']['team_id']

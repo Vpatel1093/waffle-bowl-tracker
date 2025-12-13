@@ -1,6 +1,18 @@
 <!-- Waffle Bowl Bracket Component -->
 <div class="space-y-6">
     {% if bracket and bracket.teams %}
+        <!-- Bracket Status -->
+        {% if bracket_status %}
+        <div class="bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg shadow-md p-6 text-white -mt-6 -mx-6 mb-6">
+            <div class="flex items-center justify-center">
+                <div class="text-center">
+                    <h2 class="text-2xl font-bold mb-2">Current Status</h2>
+                    <p class="text-lg">{{ bracket_status.message }}</p>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <!-- Participating Teams -->
         <div class="mb-8">
             <h3 class="text-xl font-bold text-gray-900 mb-4">Waffle Bowl Participants</h3>
