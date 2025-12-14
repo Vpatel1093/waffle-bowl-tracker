@@ -3,29 +3,23 @@
 {% block title %}Waffle Bowl - Dashboard{% endblock %}
 
 {% block content %}
-<div class="space-y-6">
+<div class="space-y-4 sm:space-y-6">
     <!-- Header Section -->
-    <div class="bg-white rounded-lg shadow-md p-6">
-        <div class="flex items-center justify-between flex-wrap gap-4">
-            <div>
-                <h1 class="text-4xl font-bold text-gray-900 flex items-center">
-                    <span class="mr-3">🧇</span>
-                    Waffle Bowl 2025
-                    <span class="ml-3">💧</span>
+    <div class="bg-white rounded-lg shadow-md p-4 sm:p-6">
+        <div class="flex items-center justify-between gap-3">
+            <div class="flex-1">
+                <h1 class="text-2xl sm:text-4xl font-bold text-gray-900 flex items-center">
+                    <span class="mr-2">🧇</span>
+                    <span>Waffle Bowl <span id="current-year"></span></span>
                 </h1>
-                <p class="text-amber-700 font-semibold mt-2">Don't get drowned in syrup! 🍯</p>
-                <p class="text-gray-500 text-sm mt-1 italic">"Scattered, smothered, covered... and last place"</p>
+                <p class="text-amber-700 font-semibold mt-1 sm:mt-2 text-sm sm:text-base">The battle to avoid last place! 🍯</p>
+                <p class="text-gray-500 text-xs sm:text-sm mt-0.5 sm:mt-1 italic">"Scattered, smothered, covered... and last place"</p>
             </div>
-            <div class="text-right">
-                <div class="text-sm text-gray-500">Last updated:</div>
-                <div class="text-lg font-semibold text-gray-900" id="last-update">
-                    Just now
-                </div>
-                <div class="mt-2">
-                    <span class="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                        <span class="animate-pulse mr-2">●</span> Live
-                    </span>
-                </div>
+            <div class="flex flex-col items-end gap-1">
+                <div class="text-xs text-gray-500">Updated <span id="last-update" class="font-semibold text-gray-900">now</span></div>
+                <span class="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                    <span class="animate-pulse mr-1">●</span> Live
+                </span>
             </div>
         </div>
     </div>
@@ -95,9 +89,9 @@
 
 <!-- Team Details Modal -->
 <div id="team-modal" class="hidden fixed inset-0 bg-gray-600 bg-opacity-50 overflow-y-auto h-full w-full z-50">
-    <div class="relative top-20 mx-auto p-5 border w-11/12 md:w-3/4 lg:w-1/2 shadow-lg rounded-md bg-white">
+    <div class="relative top-4 sm:top-20 mx-auto p-3 sm:p-5 border w-full sm:w-11/12 md:w-3/4 lg:w-1/2 max-w-4xl shadow-lg rounded-md bg-white max-h-[95vh] overflow-y-auto">
         <div class="flex justify-between items-center mb-4">
-            <h3 class="text-2xl font-bold text-gray-900">Team Details</h3>
+            <h3 class="text-xl sm:text-2xl font-bold text-gray-900">Team Details</h3>
             <button
                 onclick="document.getElementById('team-modal').classList.add('hidden')"
                 class="text-gray-400 hover:text-gray-600"
@@ -107,8 +101,17 @@
                 </svg>
             </button>
         </div>
-        <div id="team-modal-content">
-            <!-- HTMX will load content here -->
+        <div id="team-modal-content" class="min-h-[200px]">
+            <!-- Loading state (shown while HTMX fetches) -->
+            <div class="flex items-center justify-center py-12">
+                <div class="text-center">
+                    <svg class="animate-spin h-12 w-12 text-amber-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="text-gray-600">Loading details...</p>
+                </div>
+            </div>
         </div>
     </div>
 </div>
@@ -117,6 +120,9 @@
 
 {% block extra_js %}
 <script>
+    // Set current year
+    document.getElementById('current-year').textContent = new Date().getFullYear();
+
     // Update last update time
     function updateTime() {
         const now = new Date();
@@ -127,12 +133,30 @@
         document.getElementById('last-update').textContent = timeStr;
     }
 
+    // Initial update
+    updateTime();
+
     // Update time every minute
     setInterval(updateTime, 60000);
 
     // Show team modal
     function showTeamModal(teamId) {
         const modal = document.getElementById('team-modal');
+        const content = document.getElementById('team-modal-content');
+
+        // Reset to loading state
+        content.innerHTML = `
+            <div class="flex items-center justify-center py-12">
+                <div class="text-center">
+                    <svg class="animate-spin h-12 w-12 text-amber-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="text-gray-600">Loading details...</p>
+                </div>
+            </div>
+        `;
+
         modal.classList.remove('hidden');
 
         // Load team details via HTMX
@@ -145,6 +169,21 @@
     // Show matchup modal (head-to-head)
     function showMatchupModal(roundName, matchupIndex) {
         const modal = document.getElementById('team-modal');
+        const content = document.getElementById('team-modal-content');
+
+        // Reset to loading state
+        content.innerHTML = `
+            <div class="flex items-center justify-center py-12">
+                <div class="text-center">
+                    <svg class="animate-spin h-12 w-12 text-amber-600 mx-auto mb-4" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p class="text-gray-600">Loading matchup...</p>
+                </div>
+            </div>
+        `;
+
         modal.classList.remove('hidden');
 
         // Load matchup details via HTMX

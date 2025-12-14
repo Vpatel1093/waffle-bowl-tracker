@@ -3,27 +3,40 @@
     <div class="space-y-4">
         <!-- Matchup Header -->
         <div class="border-b pb-4">
-            <h4 class="text-2xl font-bold text-gray-900 text-center mb-2">
+            <h4 class="text-lg sm:text-2xl font-bold text-gray-900 text-center mb-2">
                 {{ matchup.round_name }} - Week {{ matchup.week }}
             </h4>
-            <div class="flex items-center justify-center gap-4">
+            <div class="flex items-center justify-center gap-4 mb-2">
                 <span class="font-semibold text-gray-900">{{ team1_roster.name }}</span>
                 <span class="text-gray-500">vs</span>
                 <span class="font-semibold text-gray-900">{{ team2_roster.name }}</span>
             </div>
+            {% if matchup.is_final %}
+            <div class="text-center">
+                <span class="px-3 py-1 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">
+                    Final
+                </span>
+            </div>
+            {% else %}
+            <div class="text-center">
+                <span class="px-3 py-1 bg-yellow-100 text-yellow-800 text-xs font-semibold rounded-full">
+                    In Progress
+                </span>
+            </div>
+            {% endif %}
         </div>
 
         <!-- Score Summary -->
-        <div class="grid grid-cols-2 gap-4">
-            <div class="bg-gray-50 rounded-lg p-4 text-center">
-                <div class="text-sm text-gray-500 mb-1">{{ team1_roster.name }}</div>
-                <div class="text-3xl font-bold text-gray-900">
+        <div class="grid grid-cols-2 gap-2 sm:gap-4">
+            <div class="bg-gray-50 rounded-lg p-3 sm:p-4 text-center">
+                <div class="text-xs sm:text-sm text-gray-500 mb-1 truncate">{{ team1_roster.name }}</div>
+                <div class="text-2xl sm:text-3xl font-bold text-gray-900">
                     {{ "%.1f"|format(matchup.team1_points) }}
                 </div>
             </div>
-            <div class="bg-gray-50 rounded-lg p-4 text-center">
-                <div class="text-sm text-gray-500 mb-1">{{ team2_roster.name }}</div>
-                <div class="text-3xl font-bold text-gray-900">
+            <div class="bg-gray-50 rounded-lg p-3 sm:p-4 text-center">
+                <div class="text-xs sm:text-sm text-gray-500 mb-1 truncate">{{ team2_roster.name }}</div>
+                <div class="text-2xl sm:text-3xl font-bold text-gray-900">
                     {{ "%.1f"|format(matchup.team2_points) }}
                 </div>
             </div>
@@ -49,11 +62,11 @@
                             {% set p1 = team1_roster.players[i] if i < team1_roster.players|length else none %}
                             {% set p2 = team2_roster.players[i] if i < team2_roster.players|length else none %}
 
-                            <tr class="{% if p1 and p1.selected_position != 'BN' %}bg-green-50{% endif %}">
+                            <tr class="{% if p1 and p1.selected_position != 'BN' %}{% if matchup.is_final %}bg-amber-50{% else %}bg-yellow-50{% endif %}{% endif %}">
                                 <!-- Slot -->
                                 <td class="px-2 py-2 text-sm">
                                     {% if p1 %}
-                                        <span class="px-2 py-1 bg-gray-200 rounded text-xs font-semibold">
+                                        <span class="px-2 py-1 {% if p1.selected_position != 'BN' %}{% if matchup.is_final %}bg-amber-200 text-amber-900{% else %}bg-yellow-200 text-yellow-900{% endif %}{% else %}bg-gray-200{% endif %} rounded text-xs font-semibold">
                                             {{ p1.selected_position }}
                                         </span>
                                     {% endif %}
@@ -68,7 +81,7 @@
                                 </td>
 
                                 <!-- Team 1 Points -->
-                                <td class="px-2 py-2 text-sm text-right font-semibold {% if p1 and p2 and p1.points > p2.points %}text-green-600{% endif %}">
+                                <td class="px-2 py-2 text-sm text-right font-semibold {% if p1 and p2 and p1.points > p2.points %}{% if matchup.is_final %}text-amber-700{% else %}text-yellow-700{% endif %}{% endif %}">
                                     {% if p1 %}{{ "%.1f"|format(p1.points) }}{% endif %}
                                 </td>
 
@@ -81,7 +94,7 @@
                                 </td>
 
                                 <!-- Team 2 Points -->
-                                <td class="px-2 py-2 text-sm text-right font-semibold {% if p1 and p2 and p2.points > p1.points %}text-green-600{% endif %}">
+                                <td class="px-2 py-2 text-sm text-right font-semibold {% if p1 and p2 and p2.points > p1.points %}{% if matchup.is_final %}text-amber-700{% else %}text-yellow-700{% endif %}{% endif %}">
                                     {% if p2 %}{{ "%.1f"|format(p2.points) }}{% endif %}
                                 </td>
                             </tr>
@@ -91,11 +104,11 @@
                         <tr>
                             <td class="px-2 py-2 text-sm">Total</td>
                             <td class="px-2 py-2 text-sm"></td>
-                            <td class="px-2 py-2 text-sm text-right {% if matchup.team1_points > matchup.team2_points %}text-green-600{% endif %}">
+                            <td class="px-2 py-2 text-sm text-right {% if matchup.team1_points > matchup.team2_points %}{% if matchup.is_final %}text-amber-700{% else %}text-yellow-700{% endif %}{% endif %}">
                                 {{ "%.1f"|format(matchup.team1_points) }}
                             </td>
                             <td class="px-2 py-2 text-sm"></td>
-                            <td class="px-2 py-2 text-sm text-right {% if matchup.team2_points > matchup.team1_points %}text-green-600{% endif %}">
+                            <td class="px-2 py-2 text-sm text-right {% if matchup.team2_points > matchup.team1_points %}{% if matchup.is_final %}text-amber-700{% else %}text-yellow-700{% endif %}{% endif %}">
                                 {{ "%.1f"|format(matchup.team2_points) }}
                             </td>
                         </tr>

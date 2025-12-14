@@ -34,29 +34,36 @@
             background-size: 22px 22px;
         }
 
-        /* Syrup drip animation */
+        /* Syrup drip animation - thick and viscous */
         @keyframes syrup-drip {
-            0% { transform: translateY(-100%); opacity: 0; }
-            10% { opacity: 1; }
-            90% { opacity: 1; }
-            100% { transform: translateY(100vh); opacity: 0; }
+            0% { transform: translateY(-100%) scaleY(0.5); opacity: 0; }
+            5% { opacity: 0.8; }
+            15% { transform: translateY(-50%) scaleY(1); }
+            85% { opacity: 0.8; }
+            100% { transform: translateY(100vh) scaleY(1.5); opacity: 0; }
         }
 
         .syrup-drop {
             position: absolute;
-            width: 4px;
-            height: 30px;
-            background: linear-gradient(to bottom, transparent, #D97706, #92400E);
-            border-radius: 0 0 50% 50%;
-            animation: syrup-drip 8s ease-in infinite;
-            opacity: 0.6;
+            width: 8px;
+            height: 40px;
+            background: linear-gradient(to bottom,
+                rgba(217, 119, 6, 0) 0%,
+                rgba(217, 119, 6, 0.4) 20%,
+                rgba(217, 119, 6, 0.8) 50%,
+                rgba(146, 64, 14, 0.9) 100%
+            );
+            border-radius: 0 0 60% 60%;
+            animation: syrup-drip 12s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+            opacity: 0.7;
+            filter: blur(0.5px);
         }
 
-        .syrup-drop:nth-child(1) { left: 10%; animation-delay: 0s; }
-        .syrup-drop:nth-child(2) { left: 25%; animation-delay: 2s; }
-        .syrup-drop:nth-child(3) { left: 45%; animation-delay: 4s; }
-        .syrup-drop:nth-child(4) { left: 65%; animation-delay: 1s; }
-        .syrup-drop:nth-child(5) { left: 85%; animation-delay: 3s; }
+        .syrup-drop:nth-child(1) { left: 10%; animation-delay: 0s; width: 10px; }
+        .syrup-drop:nth-child(2) { left: 25%; animation-delay: 3s; width: 7px; }
+        .syrup-drop:nth-child(3) { left: 45%; animation-delay: 6s; width: 9px; }
+        .syrup-drop:nth-child(4) { left: 65%; animation-delay: 2s; width: 8px; }
+        .syrup-drop:nth-child(5) { left: 85%; animation-delay: 5s; width: 11px; }
 
         /* Loading indicator for HTMX */
         .htmx-request .htmx-indicator {
@@ -117,10 +124,14 @@
         <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div class="flex items-center justify-between h-16">
                 <div class="flex items-center">
-                    <a href="/" class="flex items-center group">
-                        <span class="text-3xl mr-2 group-hover:animate-bounce">🧇</span>
-                        <span class="text-white text-2xl font-bold">Waffle Bowl</span>
-                        <span class="ml-2 text-xs bg-yellow-400 text-amber-900 px-2 py-1 rounded-full font-semibold">Presented by Waffle House</span>
+                    <a href="/" class="flex flex-col sm:flex-row sm:items-center group">
+                        <div class="flex items-center">
+                            <span class="text-3xl mr-2 group-hover:animate-bounce">🧇</span>
+                            <span class="text-white text-xl sm:text-2xl font-bold">Waffle Bowl</span>
+                        </div>
+                        <span class="text-[10px] sm:text-xs bg-yellow-400 text-black-900 px-2 py-0.5 sm:py-1 rounded-full font-semibold mt-0 sm:mt-1 sm:ml-2 inline-block w-fit">
+                            Presented by Waffle House
+                        </span>
                     </a>
                 </div>
                 <div class="flex items-center space-x-4">

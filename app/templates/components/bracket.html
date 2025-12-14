@@ -1,21 +1,21 @@
 <!-- Waffle Bowl Bracket Component -->
-<div class="space-y-6">
+<div class="space-y-4 sm:space-y-6">
     {% if bracket and bracket.teams %}
         <!-- Bracket Status -->
         {% if bracket_status %}
-        <div class="bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg shadow-md p-6 text-white -mt-6 -mx-6 mb-6">
+        <div class="bg-gradient-to-r from-amber-500 to-amber-600 rounded-lg shadow-md p-4 sm:p-6 text-white -mt-4 sm:-mt-6 -mx-4 sm:-mx-6 mb-4 sm:mb-6">
             <div class="flex items-center justify-center">
                 <div class="text-center">
-                    <h2 class="text-2xl font-bold mb-2">Current Status</h2>
-                    <p class="text-lg">{{ bracket_status.message }}</p>
+                    <h2 class="text-xl sm:text-2xl font-bold mb-1 sm:mb-2">Current Status</h2>
+                    <p class="text-base sm:text-lg">{{ bracket_status.message }}</p>
                 </div>
             </div>
         </div>
         {% endif %}
 
         <!-- Participating Teams -->
-        <div class="mb-6">
-            <h3 class="text-lg md:text-xl font-bold text-gray-900 mb-2 md:mb-4">Waffle Bowl Participants</h3>
+        <div class="mb-4 sm:mb-6">
+            <h3 class="text-base sm:text-lg md:text-xl font-bold text-gray-900 mb-2 md:mb-4">Waffle Bowl Participants</h3>
             <div class="grid grid-cols-3 md:grid-cols-3 lg:grid-cols-6 gap-2">
                 {% for team in bracket.teams %}
                     <div class="bg-gray-100 rounded-lg p-2 md:p-3 border-2 border-gray-300 cursor-pointer hover:border-amber-500 transition"
@@ -30,16 +30,16 @@
         </div>
 
         <!-- Bracket Rounds -->
-        <div class="space-y-8">
+        <div class="space-y-4 sm:space-y-8">
             <!-- Quarterfinals -->
             {% if bracket.rounds.quarterfinals %}
-                <div class="bg-gray-50 rounded-lg p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-bold text-gray-900">
+                <div class="bg-gray-50 rounded-lg p-4 sm:p-6">
+                    <div class="flex items-center justify-between gap-2 mb-3 sm:mb-4 flex-wrap sm:flex-nowrap">
+                        <h3 class="text-base sm:text-lg font-bold text-gray-900">
                             Quarterfinals - Week {{ bracket.rounds.quarterfinals.week }}
                         </h3>
                         {% if bracket_status and bracket_status.current_round == 'quarterfinals' %}
-                            <span class="px-3 py-1 bg-green-100 text-green-800 text-sm font-semibold rounded-full">
+                            <span class="px-2 sm:px-3 py-0.5 sm:py-1 bg-green-100 text-green-800 text-xs sm:text-sm font-semibold rounded-full whitespace-nowrap">
                                 In Progress
                             </span>
                         {% endif %}
@@ -98,7 +98,7 @@
                     <!-- Byes -->
                     {% if bracket.rounds.quarterfinals.byes %}
                         <div class="mt-4 bg-yellow-50 rounded-lg border border-yellow-200 p-4">
-                            <div class="text-sm font-semibold text-yellow-900 mb-2">🧇 Sticky Situation - Auto-Advance to Semifinals 💧</div>
+                            <div class="text-sm font-semibold text-yellow-900 mb-2">🧇 Sticky Situation - Auto-Advance to Semifinals</div>
                             <div class="grid grid-cols-2 gap-3">
                                 {% for team in bracket.rounds.quarterfinals.byes %}
                                     <div class="bg-white rounded p-3 border border-yellow-300">
@@ -114,13 +114,13 @@
 
             <!-- Semifinals -->
             {% if bracket.rounds.semifinals %}
-                <div class="bg-gray-50 rounded-lg p-6">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-lg font-bold text-gray-900">
+                <div class="bg-gray-50 rounded-lg p-4 sm:p-6">
+                    <div class="flex items-center justify-between gap-2 mb-3 sm:mb-4 flex-wrap sm:flex-nowrap">
+                        <h3 class="text-base sm:text-lg font-bold text-gray-900">
                             Semifinals - Week {{ bracket.rounds.semifinals.week }}
                         </h3>
                         {% if bracket_status and bracket_status.current_round == 'semifinals' %}
-                            <span class="px-3 py-1 bg-green-100 text-green-800 text-sm font-semibold rounded-full">
+                            <span class="px-2 sm:px-3 py-0.5 sm:py-1 bg-green-100 text-green-800 text-xs sm:text-sm font-semibold rounded-full whitespace-nowrap">
                                 In Progress
                             </span>
                         {% endif %}
@@ -167,15 +167,15 @@
 
             <!-- Finals -->
             {% if bracket.rounds.finals %}
-                <div class="bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg p-6 border-2 border-amber-400">
-                    <div class="flex items-center justify-between mb-4">
-                        <h3 class="text-2xl font-bold text-amber-900 flex items-center">
-                            <span class="mr-2">🧇</span>
-                            THE SYRUP SHOWDOWN - Week {{ bracket.rounds.finals.week }}
-                            <span class="ml-2">💧</span>
+                <div class="bg-gradient-to-r from-amber-50 to-amber-100 rounded-lg p-4 sm:p-6 border-2 border-amber-400">
+                    <div class="flex items-center justify-between gap-2 mb-3 sm:mb-4 flex-wrap sm:flex-nowrap">
+                        <h3 class="text-lg sm:text-2xl font-bold text-amber-900 flex items-center flex-wrap">
+                            <span class="mr-1 sm:mr-2">🧇</span>
+                            <span>THE SYRUP SHOWDOWN</span>
+                            <span class="text-sm sm:text-xl ml-1 sm:ml-2">Week {{ bracket.rounds.finals.week }}</span>
                         </h3>
                         {% if bracket_status and bracket_status.current_round == 'finals' %}
-                            <span class="px-3 py-1 bg-red-100 text-red-800 text-sm font-semibold rounded-full">
+                            <span class="px-2 sm:px-3 py-0.5 sm:py-1 bg-red-100 text-red-800 text-xs sm:text-sm font-semibold rounded-full whitespace-nowrap">
                                 LIVE
                             </span>
                         {% endif %}

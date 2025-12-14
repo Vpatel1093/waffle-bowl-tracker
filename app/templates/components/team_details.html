@@ -51,9 +51,9 @@
                         </thead>
                         <tbody class="bg-white divide-y divide-gray-200">
                             {% for player in roster.players %}
-                                <tr class="{% if player.selected_position != 'BN' %}bg-green-50{% endif %}">
+                                <tr class="{% if player.selected_position != 'BN' %}bg-amber-50{% endif %}">
                                     <td class="px-3 py-2 text-sm">
-                                        <span class="px-2 py-1 bg-gray-200 rounded text-xs font-semibold">
+                                        <span class="px-2 py-1 {% if player.selected_position != 'BN' %}bg-amber-200 text-amber-900{% else %}bg-gray-200{% endif %} rounded text-xs font-semibold">
                                             {{ player.selected_position }}
                                         </span>
                                     </td>
