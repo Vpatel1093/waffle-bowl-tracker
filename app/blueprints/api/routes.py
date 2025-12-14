@@ -281,9 +281,20 @@ def matchup_details(round_name, matchup_index):
         team1_points = calculate_total(team1_roster)
         team2_points = calculate_total(team2_roster)
 
-        # Determine if this week is complete (check if current_week > week)
+        # Determine game status
         current_week = data['current_week']
-        is_final = current_week > week if current_week and week else False
+        has_scores = team1_points > 0 or team2_points > 0
+
+        # Game status: 'final', 'live', or 'unstarted'
+        if current_week and week:
+            if current_week > week:
+                game_status = 'final'
+            elif current_week == week and has_scores:
+                game_status = 'live'
+            else:
+                game_status = 'unstarted'
+        else:
+            game_status = 'live'  # Default if we can't determine
 
         # Prepare matchup data
         matchup_data = {
@@ -291,7 +302,7 @@ def matchup_details(round_name, matchup_index):
             'week': week,
             'team1_points': team1_points,
             'team2_points': team2_points,
-            'is_final': is_final
+            'game_status': game_status
         }
 
         return render_template(
