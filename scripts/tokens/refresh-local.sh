@@ -13,15 +13,21 @@ fi
 # shellcheck source=/dev/null
 . "$COMMON"
 
-echo "Running interactive OAuth setup. Follow prompts in browser..."
+echo "Running interactive OAuth setup in Docker container. Follow prompts in browser..."
 
-# Activate venv if it exists
-if [ -f "$REPO_ROOT/venv/bin/activate" ]; then
-  echo "Activating virtual environment..."
-  source "$REPO_ROOT/venv/bin/activate"
+# Check if Docker containers are running
+if ! docker compose ps | grep -q "waffle_app.*Up"; then
+  echo "Docker containers not running. Starting them..."
+  docker compose up -d
+  sleep 3
 fi
 
-python -m app.utils.oauth_setup
+# Run OAuth setup in Docker container
+docker compose exec app python -m app.utils.oauth_setup
+
+# Copy tokens from container to local machine
+echo "Copying tokens from Docker container to local machine..."
+docker compose exec app cat /root/.yf_token_store/token.json > "$TOKEN_FILE"
 
 if [ ! -f "$TOKEN_FILE" ]; then
   echo "token.json not found at $TOKEN_FILE"

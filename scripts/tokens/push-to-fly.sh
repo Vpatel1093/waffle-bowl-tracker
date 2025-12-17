@@ -20,10 +20,21 @@ if ! command -v flyctl >/dev/null 2>&1; then
   exit 1
 fi
 
-echo "Running interactive OAuth setup. Follow prompts in browser..."
-python -m app.utils.oauth_setup
+# Check if Docker containers are running
+if ! docker compose ps | grep -q "waffle_app.*Up"; then
+  echo "Docker containers not running. Starting them..."
+  docker compose up -d
+  sleep 3
+fi
 
-TOKEN_FILE="$HOME/.yf_token_store/token.json"
+echo "Running interactive OAuth setup in Docker container. Follow prompts in browser..."
+docker compose exec app python -m app.utils.oauth_setup
+
+# Copy tokens from container to local machine
+echo "Copying tokens from Docker container to local machine..."
+docker compose exec app cat /root/.yf_token_store/token.json > /tmp/token.json
+
+TOKEN_FILE="/tmp/token.json"
 if [ ! -f "$TOKEN_FILE" ]; then
   echo "token.json not found at $TOKEN_FILE"
   exit 1
