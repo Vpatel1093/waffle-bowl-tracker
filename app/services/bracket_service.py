@@ -99,10 +99,10 @@ class BracketService:
         if len(teams) < self.num_teams:
             return {'error': f'Need {self.num_teams} teams, got {len(teams)}'}
 
-        # Determine playoff weeks (usually weeks 15, 16, 17)
-        qf_week = current_week if current_week >= 15 else 15
-        sf_week = qf_week + 1
-        final_week = sf_week + 1
+        # Determine playoff weeks (static assignments)
+        qf_week = 15      # Quarterfinals always week 15
+        sf_week = 16      # Semifinals always week 16
+        final_week = 17   # Finals always week 17
 
         bracket = {
             'num_teams': self.num_teams,
@@ -190,19 +190,19 @@ class BracketService:
         # Use the flat team_scores lookup from scoreboard
         scores_by_team = scoreboard_data.get('team_scores', {})
 
-        # Collect all Waffle Bowl team IDs that we need
+        # Collect all Waffle Bowl team IDs that we need (as strings for consistency)
         waffle_team_ids = set()
         for team in bracket['teams']:
-            waffle_team_ids.add(team['team_id'])
+            waffle_team_ids.add(str(team['team_id']))
 
         # Fetch missing team scores (teams not in playoff scoreboard)
         if yahoo_service:
-            missing_teams = waffle_team_ids - set(scores_by_team.keys())
+            missing_teams = waffle_team_ids - set(str(k) for k in scores_by_team.keys())
 
             for team_id in missing_teams:
                 team_points = yahoo_service.get_team_points(team_id, week)
                 if team_points:
-                    scores_by_team[team_id] = team_points
+                    scores_by_team[str(team_id)] = team_points
 
         # Check if this week is complete (all games finished)
         week_is_complete = False
@@ -224,19 +224,34 @@ class BracketService:
         qf = bracket['rounds']['quarterfinals']
         if week == qf['week']:
             for i, matchup in enumerate(qf['matchups']):
-                team1_id = matchup['team1']['team_id']
-                team2_id = matchup['team2']['team_id']
+                team1_id = str(matchup['team1']['team_id'])  # Ensure string
+                team2_id = str(matchup['team2']['team_id'])  # Ensure string
 
-                if team1_id in scores_by_team and team2_id in scores_by_team:
-                    # Add scores to teams
-                    matchup['team1']['points'] = scores_by_team[team1_id]['points']
-                    matchup['team2']['points'] = scores_by_team[team2_id]['points']
+                # Initialize points_by_week if not exists
+                if 'points_by_week' not in matchup['team1']:
+                    matchup['team1']['points_by_week'] = {}
+                if 'points_by_week' not in matchup['team2']:
+                    matchup['team2']['points_by_week'] = {}
 
-                    # Only determine loser if week is complete (after Monday night)
-                    if week_is_complete:
-                        loser = determine_loser(scores_by_team[team1_id], scores_by_team[team2_id])
-                        if loser:
-                            matchup['loser'] = loser
+                # Add scores for each team independently, keyed by week
+                if team1_id in scores_by_team:
+                    matchup['team1']['points_by_week'][week] = scores_by_team[team1_id]['points']
+                else:
+                    matchup['team1']['points_by_week'][week] = 0.0
+                if team2_id in scores_by_team:
+                    matchup['team2']['points_by_week'][week] = scores_by_team[team2_id]['points']
+                else:
+                    matchup['team2']['points_by_week'][week] = 0.0
+
+                # Only determine loser if week is complete AND both teams have scores
+                team1_points = matchup['team1']['points_by_week'].get(week, 0.0)
+                team2_points = matchup['team2']['points_by_week'].get(week, 0.0)
+                if week_is_complete and team1_points is not None and team2_points is not None:
+                    # Compare scores and assign the loser (using matchup team objects to preserve waffle_seed)
+                    if team1_points < team2_points:
+                        matchup['loser'] = matchup['team1']  # team1 loses
+                    elif team2_points < team1_points:
+                        matchup['loser'] = matchup['team2']  # team2 loses
 
         # Advance QF losers to semifinals (only if QF week is complete)
         # Use scoreboard data if we're processing the QF week, otherwise just compare week numbers
@@ -269,20 +284,36 @@ class BracketService:
         # Update semifinals if this is SF week
         sf = bracket['rounds']['semifinals']
         if week == sf['week']:
-            for matchup in sf['matchups']:
+            for i, matchup in enumerate(sf['matchups']):
                 if matchup.get('team1') and matchup.get('team2'):
-                    team1_id = matchup['team1']['team_id']
-                    team2_id = matchup['team2']['team_id']
+                    team1_id = str(matchup['team1']['team_id'])  # Ensure string
+                    team2_id = str(matchup['team2']['team_id'])  # Ensure string
 
-                    if team1_id in scores_by_team and team2_id in scores_by_team:
-                        matchup['team1']['points'] = scores_by_team[team1_id]['points']
-                        matchup['team2']['points'] = scores_by_team[team2_id]['points']
+                    # Initialize points_by_week if not exists
+                    if 'points_by_week' not in matchup['team1']:
+                        matchup['team1']['points_by_week'] = {}
+                    if 'points_by_week' not in matchup['team2']:
+                        matchup['team2']['points_by_week'] = {}
 
-                        # Only determine loser if week is complete
-                        if week_is_complete:
-                            loser = determine_loser(scores_by_team[team1_id], scores_by_team[team2_id])
-                            if loser:
-                                matchup['loser'] = loser
+                    # Add scores for each team independently, keyed by week
+                    if team1_id in scores_by_team:
+                        matchup['team1']['points_by_week'][week] = scores_by_team[team1_id]['points']
+                    else:
+                        matchup['team1']['points_by_week'][week] = 0.0
+                    if team2_id in scores_by_team:
+                        matchup['team2']['points_by_week'][week] = scores_by_team[team2_id]['points']
+                    else:
+                        matchup['team2']['points_by_week'][week] = 0.0
+
+                    # Only determine loser if week is complete AND both teams have scores
+                    team1_points = matchup['team1']['points_by_week'].get(week, 0.0)
+                    team2_points = matchup['team2']['points_by_week'].get(week, 0.0)
+                    if week_is_complete and team1_points is not None and team2_points is not None:
+                        # Compare scores and assign the loser (using matchup team objects)
+                        if team1_points < team2_points:
+                            matchup['loser'] = matchup['team1']
+                        elif team2_points < team1_points:
+                            matchup['loser'] = matchup['team2']
 
         # Advance SF losers to finals (only if SF week is complete)
         # Use scoreboard data if we're processing the SF week, otherwise just compare week numbers
@@ -296,18 +327,34 @@ class BracketService:
         # Update finals if this is final week
         final = bracket['rounds']['finals']
         if week == final['week'] and final['matchup'].get('team1') and final['matchup'].get('team2'):
-            team1_id = final['matchup']['team1']['team_id']
-            team2_id = final['matchup']['team2']['team_id']
+            team1_id = str(final['matchup']['team1']['team_id'])  # Ensure string
+            team2_id = str(final['matchup']['team2']['team_id'])  # Ensure string
 
-            if team1_id in scores_by_team and team2_id in scores_by_team:
-                final['matchup']['team1']['points'] = scores_by_team[team1_id]['points']
-                final['matchup']['team2']['points'] = scores_by_team[team2_id]['points']
+            # Initialize points_by_week if not exists
+            if 'points_by_week' not in final['matchup']['team1']:
+                final['matchup']['team1']['points_by_week'] = {}
+            if 'points_by_week' not in final['matchup']['team2']:
+                final['matchup']['team2']['points_by_week'] = {}
 
-                # Only determine loser if week is complete
-                if week_is_complete:
-                    loser = determine_loser(scores_by_team[team1_id], scores_by_team[team2_id])
-                    if loser:
-                        final['matchup']['loser'] = loser
+            # Add scores for each team independently, keyed by week
+            if team1_id in scores_by_team:
+                final['matchup']['team1']['points_by_week'][week] = scores_by_team[team1_id]['points']
+            else:
+                final['matchup']['team1']['points_by_week'][week] = 0.0
+            if team2_id in scores_by_team:
+                final['matchup']['team2']['points_by_week'][week] = scores_by_team[team2_id]['points']
+            else:
+                final['matchup']['team2']['points_by_week'][week] = 0.0
+
+            # Only determine loser if week is complete AND both teams have scores
+            team1_points = final['matchup']['team1']['points_by_week'].get(week, 0.0)
+            team2_points = final['matchup']['team2']['points_by_week'].get(week, 0.0)
+            if week_is_complete and team1_points is not None and team2_points is not None:
+                # Compare scores and assign the loser (using matchup team objects)
+                if team1_points < team2_points:
+                    final['matchup']['loser'] = final['matchup']['team1']
+                elif team2_points < team1_points:
+                    final['matchup']['loser'] = final['matchup']['team2']
 
         return bracket
 

@@ -50,77 +50,74 @@ def get_complete_bracket():
         sf_week = bracket['rounds']['semifinals']['week']
         final_week = bracket['rounds']['finals']['week']
 
-        # Determine active week (only fetch scores for week in progress)
-        if current_week == qf_week:
-            active_week = qf_week
-        elif current_week == sf_week:
-            active_week = sf_week
-        elif current_week == final_week:
-            active_week = final_week
-        elif current_week > qf_week:
-            # Between rounds, use most recent
-            active_week = min(current_week, final_week)
-        else:
-            active_week = None
+        # Determine which weeks to fetch scores for
+        # Fetch ALL completed and active playoff weeks (not future weeks)
+        weeks_to_fetch = []
 
-        # Pre-fetch rosters ONLY for active week (not all 3 weeks) - PARALLELIZED
+        if current_week >= qf_week:
+            weeks_to_fetch.append(qf_week)  # Always fetch QF if it has started
+        if current_week >= sf_week:
+            weeks_to_fetch.append(sf_week)  # Fetch SF if it has started
+        if current_week >= final_week:
+            weeks_to_fetch.append(final_week)  # Fetch Final if it has started
+
+        # Pre-fetch rosters for ALL weeks we're fetching scores for - PARALLELIZED
         rosters = {}
         team_points_by_week = {}
 
-        if active_week:
-            # Fetch all team rosters in parallel
-            with ThreadPoolExecutor(max_workers=6) as executor:
-                # Submit all roster fetch tasks
-                roster_futures = {
-                    executor.submit(yahoo.get_team_roster, team['team_id'], active_week): team['team_id']
-                    for team in waffle_teams
-                }
+        # Initialize nested dicts for all teams
+        for team in waffle_teams:
+            team_id = team['team_id']
+            rosters[team_id] = {}
+            team_points_by_week[team_id] = {}
+
+        if weeks_to_fetch:
+            # Fetch rosters for all relevant weeks in parallel
+            with ThreadPoolExecutor(max_workers=min(len(waffle_teams) * len(weeks_to_fetch), 12)) as executor:
+                # Submit all roster fetch tasks for ALL weeks
+                roster_futures = {}
+                for team in waffle_teams:
+                    for week in weeks_to_fetch:
+                        future = executor.submit(yahoo.get_team_roster, team['team_id'], week)
+                        roster_futures[future] = (team['team_id'], week)
 
                 # Collect results as they complete
                 for future in as_completed(roster_futures):
-                    team_id = roster_futures[future]
-                    rosters[team_id] = {}
-                    team_points_by_week[team_id] = {}
-
+                    team_id, week = roster_futures[future]
                     try:
                         roster = future.result()
                         if roster:
-                            rosters[team_id][active_week] = roster
+                            rosters[team_id][week] = roster
 
                             # Calculate points from roster (starters only)
                             points = sum(
                                 p['points'] for p in roster.get('players', [])
                                 if p.get('selected_position') != 'BN'
                             )
-                            team_points_by_week[team_id][active_week] = points
+                            team_points_by_week[team_id][week] = points
                     except Exception as e:
-                        current_app.logger.error(f"Error fetching roster for team {team_id}: {e}")
-        else:
-            # No active week, initialize empty dicts
-            for team in waffle_teams:
-                team_id = team['team_id']
-                rosters[team_id] = {}
-                team_points_by_week[team_id] = {}
+                        current_app.logger.error(f"Error fetching roster for team {team_id}, week {week}: {e}")
 
-        # Fetch scoreboard ONLY for active week
-        if active_week and active_week <= current_week:
-            scoreboard = yahoo.get_scoreboard(active_week)
+        # Fetch scoreboards for ALL relevant weeks and update bracket incrementally
+        for week in weeks_to_fetch:
+            scoreboard = yahoo.get_scoreboard(week)
             if scoreboard:
                 # Merge roster-calculated points for missing teams
                 if 'team_scores' not in scoreboard:
                     scoreboard['team_scores'] = {}
 
-                for team_id, weeks in team_points_by_week.items():
-                    if active_week in weeks and team_id not in scoreboard['team_scores']:
-                        scoreboard['team_scores'][team_id] = {
-                            'team_id': team_id,
-                            'points': weeks[active_week],
-                            'week': active_week
+                for team_id, weeks_data in team_points_by_week.items():
+                    if week in weeks_data and str(team_id) not in scoreboard['team_scores']:
+                        scoreboard['team_scores'][str(team_id)] = {
+                            'team_id': str(team_id),
+                            'points': weeks_data[week],
+                            'week': week
                         }
 
-                # Update bracket with active week results
+                # Update bracket with this week's results
+                # This will progressively update QF, then SF, then Final
                 bracket = bracket_svc.update_bracket_with_results(
-                    bracket, scoreboard, yahoo_service=None, current_week=current_week
+                    bracket, scoreboard, yahoo_service=yahoo, current_week=current_week
                 )
 
         # Get bracket status
@@ -300,9 +297,9 @@ def matchup_details(round_name, matchup_index):
         matchup_data = {
             'round_name': round_display,
             'week': week,
-            'team1_points': team1_points,
-            'team2_points': team2_points,
-            'game_status': game_status
+            'game_status': game_status,
+            'team1_points': team1_points or 0.0,
+            'team2_points': team2_points or 0.0
         }
 
         return render_template(

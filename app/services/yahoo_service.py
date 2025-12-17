@@ -1,9 +1,13 @@
 """Yahoo Fantasy API service with caching."""
 import os
+import logging
 from datetime import datetime
 from typing import List, Dict, Optional
 from yfpy.query import YahooFantasySportsQuery
+from flask import current_app
 from app import cache
+
+logger = logging.getLogger(__name__)
 
 
 class YahooService:
@@ -111,7 +115,7 @@ class YahooService:
                         'losses': int(team.team_standings.outcome_totals.losses) if hasattr(team, 'team_standings') else 0,
                         'ties': int(team.team_standings.outcome_totals.ties) if hasattr(team, 'team_standings') and hasattr(team.team_standings.outcome_totals, 'ties') else 0,
                         'points_for': float(team.team_points.total) if hasattr(team, 'team_points') else 0.0,
-                        'points_against': float(team.team_projected_points.total) if hasattr(team, 'team_projected_points') else 0.0,
+                        'points_against': float(team.team_points_against.total) if hasattr(team, 'team_points_against') else 0.0,
                         'rank': int(team.team_standings.rank) if hasattr(team, 'team_standings') else 0
                     })
                 except Exception as team_error:
@@ -130,81 +134,82 @@ class YahooService:
 
     def get_scoreboard(self, week: int = None) -> Optional[Dict]:
         """Get scoreboard for a specific week.
-
-        Smart caching: Completed weeks cached 24h, active weeks cached per CACHE_LIVE_SCORES
-
-        Args:
-            week: Week number (uses current week if not specified)
-
-        Returns:
-            Dict with matchups for the week
+        Smart caching: Completed weeks cached 24h, active weeks per CACHE_LIVE_SCORES.
         """
         if not self.yf_query:
             return None
 
-        # Check if week is complete for smart caching
+        # 1. Setup Smart Caching
         current_week = self.get_current_week()
-        is_complete = week < current_week if week else False
+        week = week or current_week
 
-        # Use longer cache for completed weeks (scores don't change)
+        # Smart cache timeout based on week status
+        if week < current_week - 1:
+            # Week is fully complete (more than 1 week ago) - use 1 week cache
+            cache_timeout = 604800  # 7 days in seconds
+        elif week < current_week:
+            # Week just completed (last week) - use 24h cache for final score stability
+            cache_timeout = 86400  # 24 hours
+        else:
+            # Active week (current week or future) - use live scores cache
+            cache_timeout = self.cache_live_scores  # 30 seconds
+
         cache_key = f'scoreboard_{self.league_id}_{week}'
-        cache_timeout = 86400 if is_complete else self.cache_live_scores
 
-        # Try cache first
         cached = cache.get(cache_key)
         if cached is not None:
             return cached
 
         try:
-            # Helper function for byte strings
-            def to_str(val):
-                if isinstance(val, bytes):
-                    return val.decode('utf-8')
-                return str(val) if val is not None else ''
-
+            # 2. Fetch raw data from Yahoo
             scoreboard = self.yf_query.get_league_scoreboard_by_week(week)
-
             matchups = []
-            # Also collect all team scores in a flat dict for easy lookup
             team_scores = {}
 
+            # Helper for string conversion
+            def to_str(val):
+                return val.decode('utf-8') if isinstance(val, bytes) else str(val or '')
+
+            # 3. Process Matchups
             for matchup in scoreboard.matchups:
-                teams = []
+                teams_data = []
                 for team in matchup.teams:
-                    team_data = {
+                    t_data = {
                         'team_id': to_str(team.team_id),
                         'team_key': to_str(team.team_key),
                         'name': to_str(team.name),
-                        'points': float(team.team_points.total) if hasattr(team, 'team_points') else 0.0,
-                        'projected_points': float(team.team_projected_points.total) if hasattr(team, 'team_projected_points') else 0.0
+                        'points': float(getattr(team.team_points, 'total', 0.0))
                     }
-                    teams.append(team_data)
-                    # Store in lookup dict
-                    team_scores[team_data['team_id']] = team_data
+                    teams_data.append(t_data)
+                    team_scores[t_data['team_id']] = t_data
 
-                winner_team_key = matchup.winner_team_key if hasattr(matchup, 'winner_team_key') else None
+                # Normalize for template consumption
+                t1 = teams_data[0] if len(teams_data) > 0 else {}
+                t2 = teams_data[1] if len(teams_data) > 1 else {}
 
                 matchups.append({
                     'week': week,
-                    'teams': teams,
-                    'winner_team_key': winner_team_key,
-                    'is_tied': matchup.is_tied if hasattr(matchup, 'is_tied') else False,
-                    'status': matchup.status if hasattr(matchup, 'status') else 'unknown'
+                    'teams': teams_data,
+                    'winner_team_key': getattr(matchup, 'winner_team_key', None),
+                    'is_tied': getattr(matchup, 'is_tied', False),
+                    'status': getattr(matchup, 'status', 'unknown'),
+                    'team1_points': t1.get('points', 0.0),
+                    'team2_points': t2.get('points', 0.0)
                 })
 
             result = {
                 'week': week,
                 'matchups': matchups,
-                'team_scores': team_scores  # Flat lookup for all teams
+                'team_scores': team_scores
             }
 
-            # Cache the result with smart timeout
             cache.set(cache_key, result, timeout=cache_timeout)
             return result
 
         except Exception as e:
-            print(f"Error fetching scoreboard for week {week}: {e}")
+            current_app.logger.error(f"Error fetching scoreboard for week {week}: {e}")
             return None
+
 
     @cache.memoize(timeout=900)  # 15 minutes
     def get_team_roster(self, team_id: str, week: int = None) -> Optional[Dict]:

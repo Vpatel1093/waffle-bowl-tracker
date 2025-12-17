@@ -66,7 +66,7 @@ def setup_oauth():
         print("\n🔑 Your tokens:")
         print("=" * 50)
 
-        # Read the token file (OAuth2 updates it with tokens)
+        # Read the token file (OAuth2 updates private.json with tokens)
         with open(creds_file, 'r') as f:
             token_data = json.load(f)
 
@@ -77,17 +77,15 @@ def setup_oauth():
         print(f"Refresh Token: {refresh_token}")
         print("=" * 50)
 
-        # Update .env file
-        env_path = Path('.env')
-        if env_path.exists():
-            print("\n💾 Updating .env file...")
-            set_key(env_path, 'YAHOO_ACCESS_TOKEN', access_token)
-            set_key(env_path, 'YAHOO_REFRESH_TOKEN', refresh_token)
-            print("✅ .env file updated!")
-        else:
-            print("\n⚠️  .env file not found. Please manually add these to your .env file:")
-            print(f"\nYAHOO_ACCESS_TOKEN={access_token}")
-            print(f"YAHOO_REFRESH_TOKEN={refresh_token}")
+        # Copy tokens to token.json for other scripts to use
+        token_file = Path.home() / '.yf_token_store' / 'token.json'
+        with open(token_file, 'w') as f:
+            json.dump(token_data, f)
+
+        # Note: .env file will be updated by the calling script (refresh-local.sh)
+        # to avoid conflicts with quote formatting
+        print("\n✅ Tokens saved to ~/.yf_token_store/token.json")
+        print("💡 The .env file will be updated by the refresh script")
 
         print("\n✨ Setup complete! You can now run the app:")
         print("   flask run --cert=adhoc")

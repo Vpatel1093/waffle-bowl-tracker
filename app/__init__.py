@@ -49,5 +49,14 @@ def create_app(config_name='default'):
     @app.errorhandler(500)
     def internal_error(error):
         return render_template('errors/500.html'), 500
+    
+    @app.shell_context_processor
+    def make_shell_context():
+        from app.services.yahoo_service import YahooService
+        # Initialize it so it's ready to use
+        return {
+            'YahooService': YahooService,
+            'y': YahooService()
+        }
 
     return app

@@ -15,7 +15,7 @@ class Config:
     # Yahoo OAuth (Shared Authentication)
     YAHOO_CLIENT_ID = os.getenv('YAHOO_CLIENT_ID')
     YAHOO_CLIENT_SECRET = os.getenv('YAHOO_CLIENT_SECRET')
-    YAHOO_REDIRECT_URI = os.getenv('YAHOO_REDIRECT_URI', 'https://localhost:5000/auth/callback')
+    YAHOO_REDIRECT_URI = os.getenv('YAHOO_REDIRECT_URI', 'https://localhost:8080/auth/callback')
     YAHOO_ACCESS_TOKEN = os.getenv('YAHOO_ACCESS_TOKEN')
     YAHOO_REFRESH_TOKEN = os.getenv('YAHOO_REFRESH_TOKEN')
 

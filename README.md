@@ -36,7 +36,7 @@ The Waffle Bowl is a losers bracket where the **worst teams compete in the playo
 2. Create a new app:
    - **App Name**: Waffle Bowl
    - **Description**: Yahoo Fantasy Football Waffle Bowl tracker 🧇
-   - **Redirect URI**: `https://localhost:5000/auth/callback` (for local dev)
+   - **Redirect URI**: `https://localhost:8080/auth/callback` (for local dev with Docker)
    - **API Permissions**: Fantasy Sports (Read)
    - **OAuth Client Type**: Confidential Client
 3. Save your **Client ID** and **Client Secret**
@@ -96,12 +96,12 @@ python -m app.utils.oauth_setup
 **Important**: You need HTTPS for local OAuth. Use one of these methods:
 - **Option A (Recommended)**: Use ngrok
   ```bash
-  ngrok http 5000
+  ngrok http 8080
   # Update YAHOO_REDIRECT_URI in .env to the ngrok HTTPS URL
   ```
 - **Option B**: Use Flask's self-signed cert
   ```bash
-  flask run --cert=adhoc
+  flask run --cert=adhoc --port=8080
   ```
 
 ### 6. Run the App
@@ -111,192 +111,50 @@ python -m app.utils.oauth_setup
 redis-server
 
 # Start the Flask app
-flask run --cert=adhoc
+flask run --cert=adhoc --port=8080
 
 # Or for production mode:
-gunicorn wsgi:app
+gunicorn wsgi:app -b 0.0.0.0:8080
 ```
 
-Visit `https://localhost:5000` to see your Waffle Bowl!
+Visit `https://localhost:8080` to see your Waffle Bowl!
+
+**Note:** For the easiest setup, use Docker Compose instead (see Docker section below) - just run `make dev`!
 
 ---
 
-## Fly.io Deployment
+## Fly.io Deployment (stateless tokens)
 
-### Initial Deployment
+We use a stateless token workflow. The container entrypoint writes YFPY token files from environment secrets at start, so you do not need a persistent token volume for basic deployments.
 
-1. **Install Fly.io CLI**
-   ```bash
-   # macOS
-   brew install flyctl
+Recommended flow
+1. Ensure you are logged into Fly: `flyctl auth login`
+2. Push interactive OAuth tokens to Fly and deploy in one step:
+   - From this repo run:
+     ```
+     make deploy
+     ```
+     This runs the helper `./scripts/tokens/push-to-fly.sh` to update Fly secrets (interactive browser step may open), then runs `flyctl deploy -a <your-fly-app-name>`.
+3. Alternatively, run the helper and deploy separately:
+   - `./scripts/tokens/push-to-fly.sh <your-fly-app-name>`
+   - `flyctl deploy -a <your-fly-app-name>`
 
-   # Or use install script
-   curl -L https://fly.io/install.sh | sh
-   ```
+Local development
+- To update local tokens (interactive + auto-update .env):
+  - `make refresh-tokens`
+    - This runs `python -m app.utils.oauth_setup` (opens browser) and writes the resulting
+      YAHOO_ACCESS_TOKEN / YAHOO_REFRESH_TOKEN (and client creds when present) into the project's `.env`.
+  - After updating tokens restart compose:
+    - `make down && make up --build`
 
-2. **Login to Fly.io**
-   ```bash
-   flyctl auth login
-   ```
+Notes about tokens & refresh
+- YFPY will use the refresh token + client creds to obtain fresh access tokens when needed; it writes refreshed access tokens to token.json at runtime.
+- With the stateless approach, runtime-updated access_tokens are ephemeral (not persisted across redeploys) because we do not mount a persistent token volume. The authoritative credential you must keep in secrets is the refresh token — on each start the entrypoint will re-create token.json from that secret.
+- If a refresh token becomes invalid/expired, re-run the interactive oauth setup locally to obtain a new refresh token, then update the Fly secret (using the helper script or manually) and redeploy.
 
-3. **Create Upstash Redis** (for caching)
-   ```bash
-   fly redis create
-   # Follow prompts to create Redis instance
-   # Save the REDIS_URL for later
-   ```
-
-4. **Create Persistent Volume** (for OAuth token storage)
-   ```bash
-   flyctl volumes create yahoo_tokens --size 1 --region iad --app waffle-bowl-tracker
-   ```
-
-   **Why?** Yahoo OAuth tokens refresh automatically, but need persistent storage to survive container restarts.
-
-5. **Get Fresh OAuth Tokens** (CRITICAL STEP!)
-
-   **⚠️ IMPORTANT:** You must do this step **immediately before** setting secrets in step 6. Yahoo access tokens expire in ~1 hour!
-
-   ```bash
-   # On your LOCAL machine, run oauth setup
-   cd waffle-bowl-tracker
-   python -m app.utils.oauth_setup
-
-   # This opens your browser for Yahoo authorization
-   # After authorizing, tokens are saved to ~/.yf_token_store/token.json
-
-   # Immediately copy the tokens:
-   cat ~/.yf_token_store/token.json
-   ```
-
-   You'll see something like:
-   ```json
-   {
-     "access_token": "YbZLBxmftF...",
-     "refresh_token": "AIiXPGl5xWmggPSL...",
-     "consumer_key": "dj0yJmk9...",
-     "consumer_secret": "3ec799f2...",
-     "guid": null,
-     "token_time": 1765608310.327566,
-     "token_type": "bearer"
-   }
-   ```
-
-   **Copy the `access_token` and `refresh_token` values** - you'll need them in the next step!
-
-6. **Set Secrets** (immediately after getting tokens!)
-
-   **⏱️ TIME SENSITIVE:** Run this within 5 minutes of step 5 to avoid token expiry!
-
-   ```bash
-   flyctl secrets set \
-     FLASK_ENV=production \
-     YAHOO_CLIENT_ID=<your-client-id-from-yahoo-developer> \
-     YAHOO_CLIENT_SECRET=<your-client-secret-from-yahoo-developer> \
-     YAHOO_ACCESS_TOKEN=<paste-access-token-from-step-5> \
-     YAHOO_REFRESH_TOKEN=<paste-refresh-token-from-step-5> \
-     REDIS_URL=<redis-url-from-step-3> \
-     LEAGUE_ID=<your-yahoo-league-id> \
-     WAFFLE_BOWL_TEAMS=6 \
-     CACHE_LIVE_SCORES=15 \
-     -a waffle-bowl-tracker
-   ```
-
-7. **Deploy!**
-   ```bash
-   fly deploy -a waffle-bowl-tracker
-   ```
-
-   Your app will be live at `https://waffle-bowl-tracker.fly.dev`!
-
-8. **Verify Deployment**
-   ```bash
-   # Watch the logs
-   fly logs -a waffle-bowl-tracker
-
-   # You should see:
-   # "📝 Creating private.json with consumer credentials..."
-   # "✅ Created /root/.yf_token_store/private.json"
-   # "📝 Initializing Yahoo OAuth tokens from environment variables..."
-   # "✅ Token file created at /root/.yf_token_store/token.json"
-
-   # NO "Enter verifier" prompts = success!
-
-   # Open your app
-   fly open -a waffle-bowl-tracker
-   ```
-
-### Troubleshooting Deployment
-
-#### "Token Expired" Error
-If you see `OAuth oauth_problem="token_expired"` in the logs:
-
-1. **Get fresh tokens** (tokens expire in ~1 hour):
-   ```bash
-   # On local machine
-   python -m app.utils.oauth_setup
-   cat ~/.yf_token_store/token.json
-   ```
-
-2. **Update secrets immediately**:
-   ```bash
-   flyctl secrets set \
-     YAHOO_ACCESS_TOKEN="<new-access-token>" \
-     YAHOO_REFRESH_TOKEN="<new-refresh-token>" \
-     -a waffle-bowl-tracker
-   ```
-
-3. **Clean token file and restart**:
-   ```bash
-   fly ssh console -a waffle-bowl-tracker
-   rm /root/.yf_token_store/token.json
-   exit
-
-   fly apps restart waffle-bowl-tracker
-   ```
-
-#### "Enter Verifier" Prompts in Logs
-This means token files are missing or invalid. Follow the "Token Expired" steps above.
-
-#### Debugging Commands
-```bash
-# SSH into app
-fly ssh console -a waffle-bowl-tracker
-
-# Check token files
-ls /root/.yf_token_store/
-cat /root/.yf_token_store/token.json
-
-# Check secrets are set
-env | grep YAHOO
-
-# View logs
-fly logs -a waffle-bowl-tracker
-
-# Connect to Redis
-fly redis connect
-```
-
-### How Token Refresh Works
-
-The app automatically handles Yahoo OAuth token refresh using persistent storage:
-
-1. **First Deployment**:
-   - `init_tokens.py` creates token files from environment variables
-   - Files created: `private.json` (consumer credentials) and `token.json` (OAuth tokens)
-   - Both stored in `/root/.yf_token_store/` (on persistent volume)
-
-2. **Automatic Token Refresh**:
-   - YFPY automatically refreshes tokens when they expire (tokens expire every ~1 hour)
-   - Refreshed tokens are written back to `token.json` on the persistent volume
-   - The refresh_token is long-lived and enables automatic renewal
-
-3. **Container Restarts**:
-   - Persistent volume preserves `token.json` across restarts
-   - App uses existing (possibly refreshed) tokens
-   - Token refresh continues automatically
-
-**After initial deployment, you'll never need to manually update tokens again!** 🎉
+Security
+- Keep YAHOO_CLIENT_ID / YAHOO_CLIENT_SECRET / YAHOO_REFRESH_TOKEN in a secrets store (Fly secrets, etc.), not in git.
+- Rotate secrets if they are accidentally committed.
 
 ---
 
@@ -431,7 +289,7 @@ redis-cli
 FLUSHALL
 
 # Or use the built-in endpoint
-curl http://localhost:5000/api/cache/clear
+curl http://localhost:8080/api/cache/clear
 ```
 
 ### Manual OAuth Token Refresh
@@ -460,7 +318,7 @@ python -m app.utils.oauth_setup
 - Check browser console for HTMX errors
 
 ### HTTPS required for OAuth
-- Use ngrok: `ngrok http 5000`
+- Use ngrok: `ngrok http 8080`
 - Or Flask adhoc SSL: `flask run --cert=adhoc`
 - Update `YAHOO_REDIRECT_URI` accordingly
 
@@ -498,3 +356,80 @@ MIT License - feel free to use and modify!
 ---
 
 **May the odds be ever in your favor... or not. 🧇**
+
+# Waffle Bowl Tracker
+
+## Quick start (Docker)
+- Install Docker & Docker Compose.
+- Create a `.env` in the project root (see "Environment").
+- Foreground (attached): `make dev` — containers run in your terminal, logs stream here, and Ctrl+C stops the services.
+- Background (detached): `make up` — containers run in the background. Open a new terminal and run `make logs` to follow logs, and `make down` to stop/remove services.
+- The included `docker-compose.yml` runs the app + Redis and passes `.env` into the app via `env_file`.
+
+### Ports & protocol
+- The app listens on container port 8080 and the Makefile/compose maps it to host 8080 by default.
+- Use http://localhost:8080 unless you explicitly configure TLS inside the container.
+
+### Redis options
+- Compose (recommended): `docker compose` will create a `redis` service and the app will use `REDIS_HOST=redis` as configured in compose.
+- Host Redis: if you prefer the host machine's Redis, set `REDIS_HOST=host.docker.internal` (macOS/Windows) or use `--add-host=host.docker.internal:host-gateway` on Linux and set `REDIS_HOST` accordingly.
+
+### Environment variables and secrets
+- `docker compose` will read `.env` and `env_file` entries; the container will receive the variables set in `.env` automatically when you use these features.
+- If container logs show missing values (e.g. empty `client_id` in OAuth URL), ensure `.env` contains the required keys and is passed to the container (via `env_file` or `--env-file`).
+- Security: do NOT commit your real `.env` with secrets. Remove it from git history and rotate secrets if already committed.
+
+### Troubleshooting
+- "port is already allocated" -> something on the host is already using port 8080. Diagnose with:
+  - `docker ps`
+  - `sudo lsof -iTCP:8080 -sTCP:LISTEN -n -P` (macOS/Linux)
+  - Stop the conflicting process or change host mapping to e.g. `8081:8080` in compose or when running `docker run`.
+- Inspect container env:
+  - `docker compose exec app env | grep -i YAHOO`
+  - `docker compose logs -f` to watch
+
+### OAuth tokens and deployment (stateless — Option B)
+
+We use a stateless token workflow: the container entrypoint writes YFPY token files from environment secrets each time the container starts. This keeps deploys simple and avoids managing a persistent token volume.
+
+How ENTRYPOINT and CMD work
+- ENTRYPOINT is the image script (/docker-entrypoint.sh). It initializes token files from env/secrets and then execs the command arguments.
+- CMD in the Dockerfile provides default args (our CMD runs gunicorn). Docker runs: /docker-entrypoint.sh <CMD-args>, so the entrypoint does init and then starts the server.
+
+Recommended production flow (Fly)
+1. Ensure secrets are set in Fly (client creds + refresh token):
+   - flyctl secrets set \
+     YAHOO_CLIENT_ID=<id> \
+     YAHOO_CLIENT_SECRET=<secret> \
+     YAHOO_REFRESH_TOKEN=<refresh-token> \
+     -a <appname>
+2. Deploy or restart the app:
+   - fly deploy -a <appname>  (or fly apps restart <appname>)
+   - Or from this repo (convenience): FLY_APP=<appname> make deploy
+3. The entrypoint will write /root/.yf_token_store/token.json from the secrets and YFPY will refresh access tokens as needed during runtime.
+
+Local dev (Make)
+- Use `.env` for local values and run:
+  - make dev     # runs the same image/entrypoint + CMD locally
+- After editing `.env` restart:
+  - make down && make up --build
+
+Updating/rotating the refresh token
+- When you generate a new refresh token (interactive oauth setup):
+  1. Run locally: python -m app.utils.oauth_setup (opens browser; get new refresh token)
+  2. Update the platform secret (Fly) or `.env` locally:
+     - Fly: flyctl secrets set YAHOO_REFRESH_TOKEN=<new-refresh> -a <appname>
+     - Local: edit `.env` then restart compose
+  3. Redeploy/restart so entrypoint overwrites token.json with the new secret.
+
+Why this works without persisting token.json
+- YFPY uses the refresh token + client credentials to obtain fresh access tokens when needed. Those refreshed access tokens are written to token.json at runtime but are ephemeral if you don't mount a volume. On restart the entrypoint re-creates token.json from the authoritative secret (refresh token), and YFPY can refresh again. If the refresh token itself becomes invalid you must re-run the interactive oauth setup and update the secret.
+
+When to use a persistent token volume
+- If you want runtime-refreshed access tokens to survive container restarts (avoid re-refreshing on each restart), mount a persistent volume at `/root/.yf_token_store`. This adds operational complexity; for minimal infra choose the stateless approach.
+
+Quick verification
+- Inspect token in a running container:
+  - docker compose exec app cat /root/.yf_token_store/token.json
+- Check logs for successful init and token refresh messages:
+  - docker compose logs -f app

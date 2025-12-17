@@ -60,8 +60,8 @@
                                         <div class="text-xs text-gray-500">Seed #{{ matchup.team1.waffle_seed }}</div>
                                     </div>
                                     <div class="text-2xl font-bold text-gray-900 ml-4">
-                                        {% if matchup.team1.points is defined %}
-                                            {{ "%.1f"|format(matchup.team1.points) }}
+                                        {% if matchup.team1.points_by_week and bracket.rounds.quarterfinals.week in matchup.team1.points_by_week %}
+                                            {{ "%.1f"|format(matchup.team1.points_by_week[bracket.rounds.quarterfinals.week]) }}
                                         {% else %}
                                             -
                                         {% endif %}
@@ -75,8 +75,8 @@
                                         <div class="text-xs text-gray-500">Seed #{{ matchup.team2.waffle_seed }}</div>
                                     </div>
                                     <div class="text-2xl font-bold text-gray-900 ml-4">
-                                        {% if matchup.team2.points is defined %}
-                                            {{ "%.1f"|format(matchup.team2.points) }}
+                                        {% if matchup.team2.points_by_week and bracket.rounds.quarterfinals.week in matchup.team2.points_by_week %}
+                                            {{ "%.1f"|format(matchup.team2.points_by_week[bracket.rounds.quarterfinals.week]) }}
                                         {% else %}
                                             -
                                         {% endif %}
@@ -141,7 +141,7 @@
                                             <div class="text-xs text-gray-500">From QF</div>
                                         </div>
                                         <div class="text-2xl font-bold ml-4">
-                                            {% if matchup.team1.points is defined %}{{ "%.1f"|format(matchup.team1.points) }}{% else %}-{% endif %}
+                                            {% if matchup.team1.points_by_week and bracket.rounds.semifinals.week in matchup.team1.points_by_week %}{{ "%.1f"|format(matchup.team1.points_by_week[bracket.rounds.semifinals.week]) }}{% else %}0.0{% endif %}
                                         </div>
                                     </div>
                                 {% else %}
@@ -156,7 +156,7 @@
                                         <div class="text-xs text-yellow-700">Bye Team</div>
                                     </div>
                                     <div class="text-2xl font-bold ml-4">
-                                        {% if matchup.team2.points is defined %}{{ "%.1f"|format(matchup.team2.points) }}{% else %}-{% endif %}
+                                        {% if matchup.team2.points_by_week and bracket.rounds.semifinals.week in matchup.team2.points_by_week %}{{ "%.1f"|format(matchup.team2.points_by_week[bracket.rounds.semifinals.week]) }}{% else %}0.0{% endif %}
                                     </div>
                                 </div>
                             </div>
@@ -195,7 +195,7 @@
                                     <div class="text-xs text-gray-500">From Semifinal 1</div>
                                 </div>
                                 <div class="text-3xl font-bold ml-4">
-                                    {% if final.team1.points is defined %}{{ "%.1f"|format(final.team1.points) }}{% else %}-{% endif %}
+                                    {% if final.team1.points_by_week and bracket.rounds.finals.week in final.team1.points_by_week %}{{ "%.1f"|format(final.team1.points_by_week[bracket.rounds.finals.week]) }}{% else %}0.0{% endif %}
                                 </div>
                             </div>
 
@@ -205,7 +205,7 @@
                                     <div class="text-xs text-gray-500">From Semifinal 2</div>
                                 </div>
                                 <div class="text-3xl font-bold ml-4">
-                                    {% if final.team2.points is defined %}{{ "%.1f"|format(final.team2.points) }}{% else %}-{% endif %}
+                                    {% if final.team2.points_by_week and bracket.rounds.finals.week in final.team2.points_by_week %}{{ "%.1f"|format(final.team2.points_by_week[bracket.rounds.finals.week]) }}{% else %}0.0{% endif %}
                                 </div>
                             </div>
 

@@ -1,0 +1,72 @@
+# Waffle Bowl Tracker - Claude Code Project Settings
+
+## Project Overview
+Fantasy football "losers bracket" tracker for the bottom 6 teams competing for last place.
+Deployed at: https://waffle-bowl-tracker.fly.dev/
+
+## Design Theme: Waffle House / Syrup
+**Important**: Always maintain the waffle/syrup theme throughout the UI.
+
+### Color Palette
+- **Amber (`amber-*`)**: Primary theme color
+  - Used for: Finals/completed games, winning scores, waffle-themed accents
+  - Examples: `bg-amber-50`, `bg-amber-200`, `text-amber-700`, `bg-amber-100`
+
+- **Yellow (`yellow-*`)**: In-progress/active state color
+  - Used for: Current games, in-progress indicators, lighter waffle tones
+  - Examples: `bg-yellow-50`, `bg-yellow-200`, `text-yellow-700`, `bg-yellow-100`
+
+- **Green**: Status indicators
+  - Used for: "In Progress" badges on bracket view
+
+- **Red/Green backgrounds**: Winner/loser highlighting
+  - `bg-green-50` for winners, `bg-red-50` for losers
+
+### UI Patterns
+- Game status badges:
+  - Final games: Amber badge (`bg-amber-100 text-amber-800`)
+  - In-progress games: Yellow badge (`bg-yellow-100 text-yellow-800`)
+
+- Score highlighting:
+  - Final games: `text-amber-700` for leading scores
+  - In-progress: `text-yellow-700` for leading scores
+
+- Active player rows:
+  - Final games: `bg-amber-50` background
+  - In-progress: `bg-yellow-50` background
+
+## Tech Stack
+- **Backend**: Flask 3.1.0 (Python)
+- **Frontend**: HTMX 2.0.4 + Tailwind CSS (via CDN)
+- **Deployment**: fly.io (app: waffle-bowl-tracker, region: iad)
+- **API**: Yahoo Fantasy Sports (via yfpy library)
+
+## Key Files
+- `app/blueprints/api/routes.py` - API endpoints, cached bracket data
+- `app/templates/components/bracket.html` - Main bracket display
+- `app/templates/components/matchup_details.html` - Head-to-head modal
+- `app/services/bracket_service.py` - Bracket logic and week completion
+- `app/services/yahoo_service.py` - Yahoo API integration with caching
+
+## Development Guidelines
+1. **Always use waffle-themed colors** - No blues, purples, or off-theme colors
+2. **Mobile-first responsive design** - Use Tailwind's `sm:`, `md:`, `lg:` breakpoints
+3. **Respect caching strategy**:
+   - Bracket data: 30s cache during active weeks
+   - Rosters: 15min cache
+   - Completed weeks: 24h cache
+4. **Performance**: Pre-fetch data in parallel, avoid N+1 queries
+5. **Theme consistency**: Check existing components before adding new colors
+
+## Common Tasks
+- **Deploy**: `fly deploy` (from project root)
+- **Local test**: Set up Yahoo OAuth tokens first with `python -m app.utils.oauth_setup`
+- **Clear cache**: Restart the app or wait for TTL expiration
+- **Fix bad commits**: Use `git push --force` to overwrite bad commits that were already deployed
+  - This is acceptable for this project to quickly fix issues in production
+  - After force push, always run `fly deploy` to update production
+
+## Waffle Bowl Structure
+- Week 15 (Quarterfinals): Seeds 3v6, 4v5 (Seeds 1-2 get byes)
+- Week 16 (Semifinals): QF losers vs bye teams
+- Week 17 (Finals): SF losers compete for last place ("syrup showdown")

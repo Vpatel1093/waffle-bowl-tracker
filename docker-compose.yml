@@ -1,0 +1,40 @@
+services:
+  redis:
+    image: redis:latest
+    container_name: waffle_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - waffle-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  app:
+    build: .
+    image: wafflebowltracker:latest
+    container_name: waffle_app
+    depends_on:
+      - redis
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=redis
+      - REDIS_URL=redis://redis:6379
+    ports:
+      - "8080:8080"
+    networks:
+      - waffle-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+networks:
+  waffle-net:
+    driver: bridge
