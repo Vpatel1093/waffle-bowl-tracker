@@ -276,10 +276,10 @@ class BracketService:
                 worse_loser = qf1_loser
 
             # Assign matchups based on season performance:
-            # Better season performer plays Seed 2 (SF1)
-            # Worse season performer plays Seed 1 (SF2) - hardest matchup
-            sf['matchups'][0]['team1'] = better_loser  # vs Seed 2
-            sf['matchups'][1]['team1'] = worse_loser   # vs Seed 1 (worst team)
+            # Better season performer plays Seed 1 (SF2) - easiest matchup in losers bracket
+            # Worse season performer plays Seed 2 (SF1) - harder matchup
+            sf['matchups'][0]['team1'] = worse_loser   # vs Seed 2 (harder)
+            sf['matchups'][1]['team1'] = better_loser  # vs Seed 1 (easiest - worst team)
 
         # Update semifinals if this is SF week
         sf = bracket['rounds']['semifinals']
