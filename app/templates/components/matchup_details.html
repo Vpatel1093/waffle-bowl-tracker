@@ -4,7 +4,7 @@
         <!-- Header with Status -->
         <div class="border-b pb-2">
             <div class="flex items-center justify-between mb-2">
-                <h4 class="text-lg font-bold text-gray-900">{{ matchup.round_name }} - Week {{ matchup.week }}</h4>
+                <h4 class="text-base sm:text-lg font-bold text-gray-900">{{ matchup.round_name }} - Week {{ matchup.week }}</h4>
                 {% if matchup.game_status == 'final' %}
                 <span class="px-2 py-0.5 bg-amber-100 text-amber-800 text-xs font-semibold rounded-full">Final</span>
                 {% elif matchup.game_status == 'live' %}
@@ -14,20 +14,20 @@
                 {% endif %}
             </div>
 
-            <div class="flex items-center justify-center gap-4">
-                <div class="text-center">
-                    <div class="font-semibold text-gray-900 text-sm">{{ team1_roster.name }}</div>
+            <div class="flex items-center justify-center gap-2 sm:gap-4">
+                <div class="text-center flex-1 min-w-0">
+                    <div class="font-semibold text-gray-900 text-xs sm:text-sm truncate px-1">{{ team1_roster.name }}</div>
                     <div class="text-xs text-gray-500">
-                        <span class="font-bold text-lg {% if matchup.game_status == 'final' %}text-amber-700{% elif matchup.game_status == 'live' %}text-yellow-700{% else %}text-gray-900{% endif %}">{{ "%.1f"|format(matchup.team1_points) }}</span>
+                        <span class="font-bold text-base sm:text-lg {% if matchup.game_status == 'final' %}text-amber-700{% elif matchup.game_status == 'live' %}text-yellow-700{% else %}text-gray-900{% endif %}">{{ "%.1f"|format(matchup.team1_points) }}</span>
                     </div>
                 </div>
 
-                <div class="text-xs text-gray-500">vs</div>
+                <div class="text-xs text-gray-500 flex-shrink-0">vs</div>
 
-                <div class="text-center">
-                    <div class="font-semibold text-gray-900 text-sm">{{ team2_roster.name }}</div>
+                <div class="text-center flex-1 min-w-0">
+                    <div class="font-semibold text-gray-900 text-xs sm:text-sm truncate px-1">{{ team2_roster.name }}</div>
                     <div class="text-xs text-gray-500">
-                        <span class="font-bold text-lg {% if matchup.game_status == 'final' %}text-amber-700{% elif matchup.game_status == 'live' %}text-yellow-700{% else %}text-gray-900{% endif %}">{{ "%.1f"|format(matchup.team2_points) }}</span>
+                        <span class="font-bold text-base sm:text-lg {% if matchup.game_status == 'final' %}text-amber-700{% elif matchup.game_status == 'live' %}text-yellow-700{% else %}text-gray-900{% endif %}">{{ "%.1f"|format(matchup.team2_points) }}</span>
                     </div>
                 </div>
             </div>
@@ -36,15 +36,15 @@
         <!-- Roster Table -->
         <div>
             <h5 class="font-semibold text-gray-900 mb-2 text-sm">Roster Comparison</h5>
-            <div class="max-h-96 overflow-y-auto overflow-x-hidden">
+            <div class="max-h-96 overflow-y-auto overflow-x-auto">
                 <table class="w-full text-xs">
                     <thead class="bg-gray-50 sticky top-0 border-b border-gray-200">
                         <tr>
-                            <th class="px-1 py-2 text-left font-medium text-gray-600 uppercase w-10">Pos</th>
-                            <th class="px-1 py-2 text-left font-medium text-gray-600 uppercase">Player</th>
-                            <th class="px-1 py-2 text-right font-medium text-gray-600 uppercase w-16">Pts</th>
-                            <th class="px-1 py-2 text-left font-medium text-gray-600 uppercase">Player</th>
-                            <th class="px-1 py-2 text-right font-medium text-gray-600 uppercase w-16">Pts</th>
+                            <th class="pr-0.5 sm:pr-1 py-1 sm:py-2 text-left font-medium text-gray-600 uppercase text-[10px] sm:text-xs">Pos</th>
+                            <th class="px-0.5 sm:px-1 py-1 sm:py-2 text-left font-medium text-gray-600 uppercase text-[10px] sm:text-xs">Player</th>
+                            <th class="px-0.5 sm:px-1 py-1 sm:py-2 text-right font-medium text-gray-600 uppercase text-[10px] sm:text-xs">Pts</th>
+                            <th class="pl-1.5 sm:pl-2 pr-0.5 sm:pr-1 py-1 sm:py-2 text-left font-medium text-gray-600 uppercase text-[10px] sm:text-xs">Player</th>
+                            <th class="px-0.5 sm:px-1 py-1 sm:py-2 text-right font-medium text-gray-600 uppercase text-[10px] sm:text-xs">Pts</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-100">
@@ -54,43 +54,43 @@
 
                             <tr class="{% if p1.selected_position != 'BN' %}{% if matchup.game_status == 'final' %}bg-amber-50{% elif matchup.game_status == 'live' %}bg-yellow-50{% endif %}{% endif %} hover:bg-gray-100">
                                 <!-- Position -->
-                                <td class="px-1 py-2">
-                                    <span class="px-1.5 py-0.5 {% if p1.selected_position != 'BN' %}{% if matchup.game_status == 'final' %}bg-amber-200 text-amber-900{% elif matchup.game_status == 'live' %}bg-yellow-200 text-yellow-900{% else %}bg-gray-300 text-gray-800{% endif %}{% else %}bg-gray-200 text-gray-600{% endif %} rounded text-xs font-bold">
+                                <td class="pr-0.5 sm:pr-1 py-1 sm:py-2">
+                                    <span class="px-1 sm:px-1.5 py-0.5 {% if p1.selected_position != 'BN' %}{% if matchup.game_status == 'final' %}bg-amber-200 text-amber-900{% elif matchup.game_status == 'live' %}bg-yellow-200 text-yellow-900{% else %}bg-gray-300 text-gray-800{% endif %}{% else %}bg-gray-200 text-gray-600{% endif %} rounded text-[10px] sm:text-xs font-bold">
                                         {{ p1.selected_position }}
                                     </span>
                                 </td>
 
                                 <!-- Team 1 Player -->
-                                <td class="px-1 py-1">
+                                <td class="px-0.5 sm:px-1 py-1">
                                     {% if p1 %}
-                                        <div class="font-medium text-gray-900 truncate leading-tight">{{ p1.name }}</div>
-                                        <div class="text-xs text-gray-500 leading-tight">
+                                        <div class="font-medium text-gray-900 truncate leading-tight text-[11px] sm:text-xs">{{ p1.name }}</div>
+                                        <div class="text-[10px] sm:text-xs text-gray-500 leading-tight">
                                             {{ p1.team }} - {{ p1.position }}{% if p1.opponent and p1.opponent != '---' %} @{{ p1.opponent }}{% endif %}{% if p1.game_clock %} <span class="font-bold text-red-600">{{ p1.game_clock }}</span>{% endif %}
                                         </div>
                                     {% endif %}
                                 </td>
 
                                 <!-- Team 1 Points -->
-                                <td class="px-1 py-1 text-right">
+                                <td class="px-0.5 sm:px-1 py-1 text-right">
                                     {% if p1 %}
-                                        <div class="text-sm text-gray-900">{{ "%.1f"|format(p1.points) if p1.points is not none else '' }}</div>
+                                        <div class="text-xs sm:text-sm text-gray-900 whitespace-nowrap">{{ "%.1f"|format(p1.points) if p1.points is not none else '' }}</div>
                                     {% endif %}
                                 </td>
 
                                 <!-- Team 2 Player -->
-                                <td class="px-1 py-1">
+                                <td class="pl-1.5 sm:pl-2 pr-0.5 sm:pr-1 py-1">
                                     {% if p2 %}
-                                        <div class="font-medium text-gray-900 truncate leading-tight">{{ p2.name }}</div>
-                                        <div class="text-xs text-gray-500 leading-tight">
+                                        <div class="font-medium text-gray-900 truncate leading-tight text-[11px] sm:text-xs">{{ p2.name }}</div>
+                                        <div class="text-[10px] sm:text-xs text-gray-500 leading-tight">
                                             {{ p2.team }} - {{ p2.position }}{% if p2.opponent and p2.opponent != '---' %} @{{ p2.opponent }}{% endif %}{% if p2.game_clock %} <span class="font-bold text-red-600">{{ p2.game_clock }}</span>{% endif %}
                                         </div>
                                     {% endif %}
                                 </td>
 
                                 <!-- Team 2 Points -->
-                                <td class="px-1 py-1 text-right">
+                                <td class="px-0.5 sm:px-1 py-1 text-right">
                                     {% if p2 %}
-                                        <div class="text-sm text-gray-900">{{ "%.1f"|format(p2.points) if p2.points is not none else '' }}</div>
+                                        <div class="text-xs sm:text-sm text-gray-900 whitespace-nowrap">{{ "%.1f"|format(p2.points) if p2.points is not none else '' }}</div>
                                     {% endif %}
                                 </td>
                             </tr>
@@ -98,13 +98,13 @@
                     </tbody>
                     <tfoot class="bg-gray-100 border-t-2 border-gray-300">
                         <tr class="font-bold">
-                            <td class="px-1 py-2">TOTAL</td>
-                            <td class="px-1 py-2"></td>
-                            <td class="px-1 py-2 text-right text-lg {% if matchup.game_status == 'final' %}text-amber-700{% elif matchup.game_status == 'live' %}text-yellow-700{% else %}text-gray-900{% endif %}">
+                            <td class="pr-0.5 sm:pr-1 py-1 sm:py-2 text-[10px] sm:text-sm whitespace-nowrap">TOTAL</td>
+                            <td class="px-0.5 sm:px-1 py-1 sm:py-2"></td>
+                            <td class="px-0.5 sm:px-1 py-1 sm:py-2 text-right text-sm sm:text-lg whitespace-nowrap {% if matchup.game_status == 'final' %}text-amber-700{% elif matchup.game_status == 'live' %}text-yellow-700{% else %}text-gray-900{% endif %}">
                                 {{ "%.1f"|format(matchup.team1_points) }}
                             </td>
-                            <td class="px-1 py-2 border-l-2 border-gray-300"></td>
-                            <td class="px-1 py-2 text-right text-lg {% if matchup.game_status == 'final' %}text-amber-700{% elif matchup.game_status == 'live' %}text-yellow-700{% else %}text-gray-900{% endif %}">
+                            <td class="pl-1.5 sm:pl-2 pr-0.5 sm:pr-1 py-1 sm:py-2 border-l-2 border-gray-300"></td>
+                            <td class="px-0.5 sm:px-1 py-1 sm:py-2 text-right text-sm sm:text-lg whitespace-nowrap {% if matchup.game_status == 'final' %}text-amber-700{% elif matchup.game_status == 'live' %}text-yellow-700{% else %}text-gray-900{% endif %}">
                                 {{ "%.1f"|format(matchup.team2_points) }}
                             </td>
                         </tr>
