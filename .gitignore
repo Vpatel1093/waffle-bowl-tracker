@@ -43,3 +43,8 @@ htmlcov/
 
 # YFPY
 .yf_token_store/
+
+# Planning & Notes
+PLANS.md
+TODO.md
+NOTES.md
