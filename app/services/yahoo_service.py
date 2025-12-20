@@ -25,6 +25,25 @@ class YahooService:
         # Get current season (auto-detect from current year)
         self.season = datetime.now().year
 
+        # Map season year to Yahoo game_id to avoid unnecessary API calls
+        # Reference: https://yfpy.uberfastman.com/
+        SEASON_TO_GAME_ID = {
+            2025: 461,
+            2024: 449,
+            2023: 423,
+            2022: 414,
+            2021: 406,
+            2020: 399,
+        }
+
+        # Get game_id for current season, default to None if not found
+        # (yfpy will query to find it every api call so keep SEASON_TO_GAME_ID up to date)
+        game_id = SEASON_TO_GAME_ID.get(self.season, None)
+        if game_id:
+            logger.info(f"Using game_id {game_id} for {self.season} NFL season")
+        else:
+            logger.warning(f"No game_id mapping for {self.season}. Please update SEASON_TO_GAME_ID mapping, yfpy will auto-detect for now at the cost of performance")
+
         # Initialize YFPY query
         # YFPY will use tokens from ~/.yf_token_store/oauth2.json
         from pathlib import Path
@@ -36,7 +55,7 @@ class YahooService:
                 auth_dir=str(auth_dir),
                 league_id=self.league_id,
                 game_code='nfl',
-                game_id=None,
+                game_id=game_id,
                 offline=False,
                 browser_callback=False  # Don't try to open browser in production
             )
@@ -114,8 +133,8 @@ class YahooService:
                         'wins': int(team.team_standings.outcome_totals.wins) if hasattr(team, 'team_standings') else 0,
                         'losses': int(team.team_standings.outcome_totals.losses) if hasattr(team, 'team_standings') else 0,
                         'ties': int(team.team_standings.outcome_totals.ties) if hasattr(team, 'team_standings') and hasattr(team.team_standings.outcome_totals, 'ties') else 0,
-                        'points_for': float(team.team_points.total) if hasattr(team, 'team_points') else 0.0,
-                        'points_against': float(team.team_points_against.total) if hasattr(team, 'team_points_against') else 0.0,
+                        'points_for': float(team.points_for) if hasattr(team, 'points_for') else 0.0,
+                        'points_against': float(team.points_against) if hasattr(team, 'points_against') else 0.0,
                         'rank': int(team.team_standings.rank) if hasattr(team, 'team_standings') else 0
                     })
                 except Exception as team_error:

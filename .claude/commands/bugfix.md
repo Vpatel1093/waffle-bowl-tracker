@@ -29,6 +29,8 @@ I need help fixing a production bug. Follow this workflow:
 - Verify the fix works with actual data
 
 ### 5. Test with Real Data
+**REQUIRED BEFORE SEEKING APPROVAL**
+
 Use one of these methods:
 ```bash
 # Method 1: Flask shell
@@ -37,16 +39,23 @@ make flask-shell
 
 # Method 2: Test script
 docker compose exec app python test_<feature>_real.py
+
+# Method 3: Test in browser (for UI fixes)
+# Visit http://localhost:8080 and verify the fix
 ```
 
 Verify:
 - ✅ Fix works with real data
 - ✅ Edge cases handled
 - ✅ No regressions
+- ✅ UI displays correctly (for frontend fixes)
+
+**DO NOT skip testing - I will ask if you tested it!**
 
 ### 6. Review Before Deploy
 - Show me all changes
 - Explain what was fixed and why
+- **Confirm you tested it** with real data/in browser
 - Wait for my approval before committing or deploying
 
 ### 7. Deploy (After Approval)

@@ -12,6 +12,9 @@ cache = Cache()
 limiter = Limiter(key_func=get_remote_address)
 htmx = HTMX()
 
+# Application-level singleton services (initialized once, not per-request)
+_yahoo_service = None
+
 
 def create_app(config_name='default'):
     """Create and configure the Flask application."""
@@ -32,14 +35,21 @@ def create_app(config_name='default'):
     app.register_blueprint(main_blueprint)
     app.register_blueprint(api_blueprint, url_prefix='/api')
 
-    # Cache service instances
+    # Initialize application-level singleton services
+    def get_yahoo_service():
+        """Get the singleton YahooService instance."""
+        global _yahoo_service
+        if _yahoo_service is None:
+            from app.services.yahoo_service import YahooService
+            _yahoo_service = YahooService()
+        return _yahoo_service
+
+    # Make service available to request context
     @app.before_request
     def setup_services():
-        """Initialize cached service instances for this request."""
+        """Attach singleton service instances to request context."""
         from flask import g
-        if not hasattr(g, 'yahoo_service'):
-            from app.services.yahoo_service import YahooService
-            g.yahoo_service = YahooService()
+        g.yahoo_service = get_yahoo_service()
 
     # Error handlers
     @app.errorhandler(404)

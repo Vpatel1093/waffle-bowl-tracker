@@ -92,11 +92,13 @@ from app.services.yahoo_service import YahooService
 ### Key Services
 
 #### YahooService (`app/services/yahoo_service.py`)
+- **Singleton service** - Created once per app instance (not per-request)
 - Handles OAuth authentication with Yahoo
 - Fetches league standings (team records, points)
 - Fetches weekly scoreboard data (matchup scores, game status)
 - Caches API responses to reduce rate limit issues
 - Token auto-refresh on expiration
+- **Performance**: Uses season-to-game_id mapping to avoid unnecessary API calls
 
 #### BracketService (`app/services/bracket_service.py`)
 - **`get_waffle_bowl_teams()`**: Identifies bottom 6 teams from standings
@@ -249,3 +251,32 @@ After refreshing tokens locally, update Fly.io:
 ```bash
 make deploy  # Automatically pushes .env secrets to Fly
 ```
+
+## Common Gotchas & Learnings
+
+### YFPY Data Structure
+When working with Yahoo Fantasy Sports API via yfpy:
+
+**Team standings data:**
+- ✅ **Correct**: `team.points_for` and `team.points_against` (direct attributes)
+- ❌ **Wrong**: `team.team_standings.points_for` (doesn't exist)
+- ❌ **Wrong**: `team.team_points.total` (old structure)
+
+**Always check the yfpy models documentation** at https://yfpy.uberfastman.com/models/
+
+### Performance Issues
+
+**Problem**: Too many log messages showing service initialization
+**Cause**: Creating service instances per-request instead of singleton
+**Solution**: Use application-level singleton in `app/__init__.py`
+
+**Problem**: Repeated warnings about "defaulting to current fantasy season"
+**Cause**: Not passing `game_id` to yfpy, causing API calls to detect season
+**Solution**: Maintain `SEASON_TO_GAME_ID` mapping in `yahoo_service.py`
+
+### Testing Requirements
+
+**Always test fixes before seeking approval:**
+- UI fixes: Test in browser at http://localhost:8080
+- Data fixes: Test with real Yahoo API data in Flask shell
+- Don't assume code is correct without verification
