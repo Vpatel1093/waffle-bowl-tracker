@@ -4,7 +4,7 @@ A Yahoo Fantasy Football losers bracket tracker where the bottom 6 teams compete
 
 ## What is the Waffle Bowl?
 
-The Waffle Bowl is a losers bracket where the **worst teams compete in the playoffs**. The twist? **You want to LOSE**. The ultimate loser earns last place.
+The Waffle Bowl is a losers bracket where the **worst teams compete in the playoffs**. The ultimate loser earns last place and a reservation at waffle house.
 
 ### Bracket Structure (6 Teams)
 - **Seeding**: Bottom 6 teams by record (worst = seed 1)
@@ -164,78 +164,67 @@ Security
 
 ### End of Season (After Playoffs)
 
-**Fly.io scales to zero automatically**, so you only pay for what you use. With the free tier and `auto_stop_machines = true` in `fly.toml`, your app will:
-- Stop running when idle (no traffic)
-- **Cost $0 in the off-season** 🎉
+**For truly $0 cost in the off-season**, destroy the entire app:
 
-If you want to explicitly stop it:
 ```bash
-# Scale down to 0 machines
-flyctl scale count 0
-
-# Or suspend the app entirely
-flyctl apps suspend wafflebowl
+# Destroy everything (app, machines, volumes)
+fly apps destroy waffle-bowl-tracker --yes
 ```
+
+**Why destroy instead of suspend?**
+- Guarantees $0 cost (no compute, no storage)
+- Clean slate for next season
+- No orphaned resources to manage
+- Re-authentication takes <5 minutes with the OAuth script
+
+**Note:** You'll need to re-authenticate with Yahoo next season, but this is simple with `./scripts/tokens/manual-oauth.sh`.
 
 ### Start of Next Season
 
-1. **Check Your League ID**
+1. **Update your League ID** (if needed)
    - Go to your Yahoo Fantasy league
    - Check the URL for the league ID
-   - If it changed (Yahoo sometimes creates new IDs for new seasons):
+   - Update `.env` locally:
      ```bash
-     flyctl secrets set LEAGUE_ID=<new-league-id>
+     LEAGUE_ID=<new-league-id>
      ```
 
-2. **Resume the App** (if suspended)
+2. **Deploy to Fly.io**
    ```bash
-   # Resume app
-   flyctl apps resume wafflebowl
-
-   # Or scale back up
-   flyctl scale count 1
+   fly deploy
    ```
 
-   Or just visit your app URL - it'll auto-start on first request!
+3. **Re-authenticate with Yahoo**
+   ```bash
+   # Run the manual OAuth script
+   ./scripts/tokens/manual-oauth.sh
 
-3. **Verify OAuth Tokens**
-   - Tokens are stored in the persistent volume
-   - They should auto-refresh automatically
-   - If you get auth errors (rare):
-     ```bash
-     # Re-run OAuth setup locally
-     python -m app.utils.oauth_setup
-
-     # Update secrets on Fly.io
-     flyctl secrets set \
-       YAHOO_ACCESS_TOKEN=<new-token> \
-       YAHOO_REFRESH_TOKEN=<new-refresh-token>
-     ```
+   # Push tokens to Fly
+   ./scripts/tokens/push-to-fly.sh
+   ```
 
 4. **Done!** 🧇
    - Your Waffle Bowl is live for the new season
-   - No code changes needed
-   - Same URL as last year
-   - Tokens persist automatically
+   - Takes ~5 minutes total
+   - Fresh deployment with updated config
 
 ### Why This Works
 
 - **No database** - All data fetched fresh from Yahoo API
 - **Stateless design** - No historical data stored
 - **Auto season detection** - App detects current NFL week automatically
-- **Persistent token storage** - Volume preserves refreshed tokens across seasons
-- **Auto-scaling** - Scales to zero when idle, starts on first request
-- **Free tier** - Fly.io free tier covers seasonal apps perfectly
+- **Simple redeployment** - Fresh deployment each season with updated config
+- **Fast OAuth refresh** - Re-authentication takes ~5 minutes with helper scripts
+- **Cost effective** - $0 in off-season, minimal compute during season
 
 ### Potential Year-Over-Year Issues
 
 | Issue | Solution |
 |-------|----------|
-| League ID changed | `flyctl secrets set LEAGUE_ID=<new-id>` |
-| OAuth tokens expired (rare) | Re-run `python -m app.utils.oauth_setup` and update secrets |
+| League ID changed | Update `LEAGUE_ID` in `.env`, redeploy |
+| Need fresh OAuth tokens | Run `./scripts/tokens/manual-oauth.sh` and `./scripts/tokens/push-to-fly.sh` |
 | Yahoo API changes | Update YFPY: `pip install --upgrade yfpy`, redeploy |
-| Playoff weeks shifted | App auto-detects weeks, but verify bracket timing |
-| Volume deleted | Recreate volume, redeploy (tokens will reinitialize) |
+| Playoff weeks shifted | App auto-detects weeks, but verify bracket timing in code |
 
 ---
 
